@@ -79,7 +79,8 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:HQ Admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
         
-        // User Management (role-permission page)
+        // User Management - EXPORT HARUS DI ATAS RESOURCE!
+        Route::get('/users/export', [App\Http\Controllers\Admin\UserController::class, 'export'])->name('users.export');
         Route::resource('users', App\Http\Controllers\Admin\UserController::class);
         
         // Role Management
@@ -88,14 +89,14 @@ Route::middleware(['auth'])->group(function () {
         // Branch Management
         Route::resource('branches', App\Http\Controllers\Admin\BranchController::class);
         
-        // Batch Oversight
+        // Batch Oversight - EXPORT HARUS DI ATAS GET {batch}!
+        Route::get('/batch-oversight/export', [App\Http\Controllers\Admin\BatchOversightController::class, 'export'])->name('batch-oversight.export');
         Route::get('/batch-oversight', [App\Http\Controllers\Admin\BatchOversightController::class, 'index'])->name('batch-oversight.index');
         Route::get('/batch-oversight/{batch}', [App\Http\Controllers\Admin\BatchOversightController::class, 'show'])->name('batch-oversight.show');
-        Route::get('/batch-oversight/export', [App\Http\Controllers\Admin\BatchOversightController::class, 'export'])->name('batch-oversight.export');
         
         // Global Reports & Analytics
-        Route::get('/reports', [App\Http\Controllers\Admin\ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/export', [App\Http\Controllers\Admin\ReportController::class, 'export'])->name('reports.export');
+        Route::get('/reports', [App\Http\Controllers\Admin\ReportController::class, 'index'])->name('reports.index');
         
         // Audit Log
         Route::get('/audit-logs', [App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit.index');

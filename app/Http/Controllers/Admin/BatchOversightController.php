@@ -19,20 +19,30 @@ class BatchOversightController extends Controller
         // Query batches with filters
         $batches = Batch::with(['trainer', 'category'])
             ->withCount([
-                'participants',
-                'participants as passed_count' => function($q) {
+                'batchParticipants as participants_count',
+                'batchParticipants as passed_count' => function($q) {
                     $q->where('status', 'Approved')
-                        ->whereHas('user.attendances', fn($query) => $query->where('status', 'Approved'))
-                        ->whereHas('user.feedback');
+                        ->whereHas('user', function($query) {
+                            $query->whereHas('attendances', function($subQuery) {
+                                $subQuery->where('status', 'Approved');
+                            })
+                            ->whereHas('feedback');
+                        });
                 }
             ])
             ->when($search, function($q) use ($search) {
                 $q->where(function($query) use ($search) {
                     $query->where('title', 'like', "%{$search}%")
-                        ->orWhereHas('trainer', fn($q) => $q->where('name', 'like', "%{$search}%"));
+                        ->orWhereHas('trainer', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('category', fn($q) => $q->where('name', 'like', "%{$search}%"));
                 });
             })
             ->when($status, fn($q) => $q->where('status', $status))
+            ->when($branchId, function($q) use ($branchId) {
+                $q->whereHas('batchParticipants.user', function($query) use ($branchId) {
+                    $query->where('branch_id', $branchId);
+                });
+            })
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -46,7 +56,11 @@ class BatchOversightController extends Controller
      */
     public function show(Batch $batch)
     {
-        $batch->load(['trainer', 'category', 'participants.user']);
+        $batch->load([
+            'trainer', 
+            'category', 
+            'batchParticipants.user.branch'
+        ]);
         
         return response()->json([
             'success' => true,
@@ -60,7 +74,7 @@ class BatchOversightController extends Controller
     public function export()
     {
         $batches = Batch::with(['trainer', 'category'])
-            ->withCount('participants')
+            ->withCount('batchParticipants as participants_count')
             ->get();
 
         return response()->streamDownload(function() use ($batches) {
@@ -72,7 +86,7 @@ class BatchOversightController extends Controller
             // Data
             foreach ($batches as $batch) {
                 fputcsv($handle, [
-                    'TRN-' . date('Y') . '-' . str_pad($batch->id, 3, '0', STR_PAD_LEFT),
+                    formatBatchCode($batch->id, $batch->created_at->year),
                     $batch->title,
                     $batch->category->name ?? '-',
                     $batch->trainer->name ?? '-',
