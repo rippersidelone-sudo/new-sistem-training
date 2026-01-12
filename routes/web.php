@@ -106,24 +106,33 @@ Route::middleware(['auth'])->group(function () {
     // TRAINING COORDINATOR ROUTES
     // --------------------------------------------------------------------
     Route::middleware(['role:Training Coordinator'])->prefix('coordinator')->name('coordinator.')->group(function () {
+        
+        // Dashboard
         Route::get('/dashboard', [App\Http\Controllers\Coordinator\DashboardController::class, 'index'])->name('dashboard');
-        
-        // Category Management
+
+        // Category Management (resource)
         Route::resource('categories', App\Http\Controllers\Coordinator\CategoryController::class);
-        
-        // Batch Management
+
+        // Batch Management (resource)
         Route::resource('batches', App\Http\Controllers\Coordinator\BatchController::class);
-        
-        // Participant Approval
-        Route::get('/participants', [App\Http\Controllers\Coordinator\ParticipantController::class, 'index'])->name('participants.index');
+        Route::get('/batches/{batch}/monitoring', [App\Http\Controllers\Coordinator\BatchController::class, 'monitoring'])->name('batches.monitoring');
+
+        // Participant Approval (resource)
+        Route::resource('participants', App\Http\Controllers\Coordinator\ParticipantController::class)->only(['index', 'show']);
         Route::post('/participants/{participant}/approve', [App\Http\Controllers\Coordinator\ParticipantController::class, 'approve'])->name('participants.approve');
         Route::post('/participants/{participant}/reject', [App\Http\Controllers\Coordinator\ParticipantController::class, 'reject'])->name('participants.reject');
-        
-        // Batch Monitoring
-        Route::get('/batches/{batch}/monitoring', [App\Http\Controllers\Coordinator\BatchController::class, 'monitoring'])->name('batches.monitoring');
-        
+        Route::post('/participants/bulk-approve', [App\Http\Controllers\Coordinator\ParticipantController::class, 'bulkApprove'])->name('participants.bulk-approve');
+
+        // Monitoring Attendance
+        Route::get('/monitoring/attendance', [App\Http\Controllers\Coordinator\AttendanceController::class, 'index'])->name('monitoring.attendance');
+        Route::get('/monitoring/attendance/export', [App\Http\Controllers\Coordinator\AttendanceController::class, 'export'])->name('monitoring.attendance.export');
+
         // Reports
         Route::get('/reports', [App\Http\Controllers\Coordinator\ReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/export', [App\Http\Controllers\Coordinator\ReportController::class, 'export'])->name('reports.export');
+
+        // Settings
+        Route::get('/settings', [App\Http\Controllers\ProfileController::class, 'edit'])->name('settings');
     });
 
     // --------------------------------------------------------------------

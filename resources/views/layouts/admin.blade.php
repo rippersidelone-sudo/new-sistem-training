@@ -1,4 +1,4 @@
-{{-- resources/views/layouts/coordinator.blade.php --}}
+{{-- resources/views/layouts/admin.blade.php --}}
 @extends('layouts.app')
 
 @section('sidebar')
@@ -29,7 +29,7 @@
                         {{ Auth::user()->name }}
                     </h1>
                     <p class="text-sm text-[#E1EFE2] leading-tight whitespace-normal">
-                        {{ Auth::user()->role->description ?? 'Training Coordinator' }}
+                        {{ Auth::user()->role->description ?? 'HQ Admin' }}
                     </p>
                 </div>
 
@@ -46,9 +46,9 @@
             {{-- MENU LIST --}}
             <nav class="mt-8 space-y-2">
                 {{-- Dashboard --}}
-                <a href="{{ route('coordinator.dashboard') }}" 
+                <a href="{{ route('admin.dashboard') }}" 
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('coordinator.dashboard') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                   {{ request()->routeIs('admin.dashboard') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
@@ -56,62 +56,34 @@
                         <path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
                         <path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
                     </svg>
-                    <span>Dashboard</span>
+                    <span>Master Dashboard</span>
                 </a>
 
-                {{-- Kategori Pelatihan --}}
-                <a href="{{ route('coordinator.categories.index') }}" 
+                {{-- Batch Oversight --}}
+                <a href="{{ route('admin.batch-oversight.index') }}" 
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('coordinator.categories.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                        <path d="M12 3l-8 4l8 4l8 -4l-8 -4" />
-                        <path d="M4 12l8 4l8 -4" />
-                        <path d="M4 16l8 4l8 -4" />
-                    </svg>
-                    <span>Kategori Pelatihan</span>
-                </a>
-
-                {{-- Batch Management --}}
-                <a href="{{ route('coordinator.batches.index') }}" 
-                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('coordinator.batches.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                   {{ request()->routeIs('admin.batch-oversight.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                     </svg>
-                    <span>Batch Management</span>
+                    <span>Batch Oversight</span>
                 </a>
 
-                {{-- Validasi Peserta --}}
-                <a href="{{ route('coordinator.participants.index') }}" 
+                {{-- Role & Permission --}}
+                <a href="{{ route('admin.users.index') }}" 
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('coordinator.participants.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                   {{ request()->routeIs(['admin.users.*', 'admin.roles.*']) ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                        <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                        <path d="M6 21v-2a4 4 0 0 1 4 -4h4" />
-                        <path d="M15 19l2 2l4 -4" />
+                        <path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" />
                     </svg>
-                    <span>Validasi Peserta</span>
+                    <span>Role & Permission</span>
                 </a>
 
-                {{-- Monitoring Absensi --}}
-                <a href="{{ route('coordinator.monitoring.attendance') }}" 
+                {{-- Global Report --}}
+                <a href="{{ route('admin.reports.index') }}" 
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('coordinator.monitoring.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                        <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
-                        <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
-                        <path d="M9 14l2 2l4 -4" />
-                    </svg>
-                    <span>Monitoring Absensi</span>
-                </a>
-
-                {{-- Laporan --}}
-                <a href="{{ route('coordinator.reports.index') }}" 
-                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('coordinator.reports.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                   {{ request()->routeIs('admin.reports.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
@@ -119,14 +91,31 @@
                         <path d="M9 12h6" />
                         <path d="M9 16h6" />
                     </svg>
-                    <span>Laporan</span>
+                    <span>Global Report</span>
+                </a>
+
+                {{-- Audit Log --}}
+                <a href="{{ route('admin.audit.index') }}" 
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
+                   {{ request()->routeIs('admin.audit.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M8 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h5.697" />
+                        <path d="M18 12v-5a2 2 0 0 0 -2 -2h-2" />
+                        <path d="M8 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
+                        <path d="M8 11h4" />
+                        <path d="M8 15h3" />
+                        <path d="M16.5 17.5m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" />
+                        <path d="M18.5 19.5l2.5 2.5" />
+                    </svg>
+                    <span>Audit Log</span>
                 </a>
 
                 {{-- Settings --}}
-                <a href="{{ route('coordinator.settings') }}" 
+                <a href="{{ route('settings') }}" 
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('coordinator.settings') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                   {{ request()->routeIs('settings') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-settings">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
                         <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />

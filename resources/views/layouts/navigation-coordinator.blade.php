@@ -1,4 +1,5 @@
-<div class="w-64 h-screen bg-[#10AF13] fixed top-0 left-0 flex flex-col justify-between p-4">
+{{-- <!--
+<div class="w-64 h-screen bg-[#10AF13] fixed top-0 left-0 flex flex-col justify-between p-4 sidebar-container">
 
     <!-- USER HEADER -->
     <div>
@@ -24,8 +25,9 @@
         <!-- MENU LIST -->
         <nav class="mt-4 space-y-3">
 
-            <!-- ITEM 1 -->
-            <a href="{{ route('coordinator.dashboard') }}" class="flex items-center space-x-3 p-3 rounded-lg text-black font-medium
+            <!-- ITEM 1 - Dashboard -->
+            <a href="{{ route('coordinator.dashboard') }}" 
+               class="flex items-center space-x-3 p-3 rounded-lg text-black font-medium
                 {{ request()->routeIs('coordinator.dashboard') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
@@ -39,9 +41,10 @@
                 <span>Dashboard</span>
             </a>
 
-            <!-- ITEM 2 -->
-            <a href="{{ route('kategori-pelatihan') }}" class="flex items-center space-x-3 p-3 text-black  rounded-lg 
-                {{ request()->routeIs('kategori-pelatihan') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
+            <!-- ITEM 2 - Kategori Pelatihan -->
+            <a href="{{ route('coordinator.categories.index') }}" 
+               class="flex items-center space-x-3 p-3 text-black rounded-lg 
+                {{ request()->routeIs('coordinator.categories.*') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                     class="icon icon-tabler icons-tabler-outline icon-tabler-stack-2">
@@ -53,18 +56,20 @@
                 <span>Kategori Pelatihan</span>
             </a>
 
-            <!-- ITEM 3 -->
-            <a href="{{ route('batch-management') }}" class="flex items-center space-x-3 p-3 text-black  rounded-lg 
-                {{ request()->routeIs('batch-management') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
+            <!-- ITEM 3 - Batch Management -->
+            <a href="{{ route('coordinator.batches.index') }}" 
+               class="flex items-center space-x-3 p-3 text-black rounded-lg 
+                {{ request()->routeIs('coordinator.batches.*') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
                     <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                 </svg>
                 <span>Batch Management</span>
             </a>
 
-            <!-- ITEM 4 -->
-            <a href="{{ route('validasi-peserta') }}" class="flex items-center space-x-3 p-3 text-black  rounded-lg 
-                {{ request()->routeIs('validasi-peserta') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
+            <!-- ITEM 4 - Validasi Peserta -->
+            <a href="{{ route('coordinator.participants.index') }}" 
+               class="flex items-center space-x-3 p-3 text-black rounded-lg 
+                {{ request()->routeIs('coordinator.participants.*') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                     class="icon icon-tabler icons-tabler-outline icon-tabler-user-check">
@@ -76,9 +81,10 @@
                 <span>Validasi Peserta</span>
             </a>
 
-            <!-- ITEM 5 -->
-            <a href="{{ route('monitoring-absensi') }}" class="flex items-center space-x-3 p-3 text-black  rounded-lg 
-                {{ request()->routeIs('monitoring-absensi') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
+            <!-- ITEM 5 - Monitoring Absensi -->
+            <a href="{{ route('coordinator.monitoring.attendance') }}" 
+               class="flex items-center space-x-3 p-3 text-black rounded-lg 
+                {{ request()->routeIs('coordinator.monitoring.*') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                     class="icon icon-tabler icons-tabler-outline icon-tabler-clipboard-check">
@@ -90,9 +96,10 @@
                 <span>Monitoring Absensi</span>
             </a>
 
-            <!-- ITEM 6 -->
-            <a href="{{ route('laporan') }}" class="flex items-center space-x-3 p-3 text-black  rounded-lg 
-                {{ request()->routeIs('laporan') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
+            <!-- ITEM 6 - Laporan -->
+            <a href="{{ route('coordinator.reports.index') }}" 
+               class="flex items-center space-x-3 p-3 text-black rounded-lg 
+                {{ request()->routeIs('coordinator.reports.*') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                     class="icon icon-tabler icons-tabler-outline icon-tabler-clipboard-text">
@@ -105,9 +112,10 @@
                 <span>Laporan</span>
             </a>
 
-            <!-- ITEM 7 -->
-            <a href="{{ route('settings-coordinator') }}" class="flex items-center space-x-3 p-3 text-black  rounded-lg 
-                {{ request()->routeIs('settings-coordinator') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
+            <!-- ITEM 7 - Settings -->
+            <a href="{{ route('settings') }}" 
+               class="flex items-center space-x-3 p-3 text-black rounded-lg 
+                {{ request()->routeIs('settings') || request()->routeIs('profile.*') ? 'bg-[#E1EFE2]' : 'hover:bg-[#0e8e0f]' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                     class="icon icon-tabler icons-tabler-outline icon-tabler-settings">
@@ -143,4 +151,4 @@
         </form>
     </div>
 
-</div>
+</div> --}}

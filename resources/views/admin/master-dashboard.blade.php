@@ -1,4 +1,5 @@
-@extends('layouts.app')
+{{-- resources/views/admin/master-dashboard.blade.php --}}
+@extends('layouts.admin')
 
 @section('content')
     <div class="px-2">

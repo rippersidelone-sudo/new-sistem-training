@@ -1,3 +1,4 @@
+{{-- <!-- resources/views/layouts/navigation-admin.blade.php -->
 <div class="w-64 h-screen bg-[#10AF13] fixed top-0 left-0 flex flex-col justify-between p-4 text-black">
 
     <!-- USER HEADER -->
@@ -124,4 +125,4 @@
         </form>
     </div>
 
-</div>
+</div> --}}
