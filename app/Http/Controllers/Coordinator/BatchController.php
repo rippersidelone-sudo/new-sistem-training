@@ -36,9 +36,20 @@ class BatchController extends Controller
             $query->where('status', $request->input('status'));
         }
 
+        // Sort filter
+        $sort = $request->input('sort', 'latest');
+        if ($sort === 'latest') {
+            $query->orderBy('created_at', 'desc');
+        } elseif ($sort === 'oldest') {
+            $query->orderBy('created_at', 'asc');
+        } elseif ($sort === 'start_date_asc') {
+            $query->orderBy('start_date', 'asc');
+        } elseif ($sort === 'start_date_desc') {
+            $query->orderBy('start_date', 'desc');
+        }
+
         // Get paginated results
-        $batches = $query->orderBy('start_date', 'desc')
-            ->paginate(9)
+        $batches = $query->paginate(9)
             ->withQueryString();
 
         // Transform data for view
@@ -68,7 +79,7 @@ class BatchController extends Controller
         $categories = Category::orderBy('name')->get();
         $trainers = User::where('role_id', 3)->orderBy('name')->get(); // role_id 3 = Trainer
 
-        return view('coordinator.batch-management', compact(
+        return view('coordinator.batch-management.batch-management', compact(
             'batches',
             'totalBatches',
             'scheduledBatches',
@@ -173,6 +184,48 @@ class BatchController extends Controller
     }
 
     /**
+     * Show the form for editing the specified batch
+     */
+    public function edit(Batch $batch)
+    {
+        // Only respond to AJAX requests
+        if (request()->ajax() || request()->wantsJson()) {
+            $batch->load('category', 'trainer', 'tasks');
+            
+            return response()->json([
+                'batch' => [
+                    'id' => $batch->id,
+                    'title' => $batch->title,
+                    'category_id' => $batch->category_id,
+                    'trainer_id' => $batch->trainer_id,
+                    'start_date' => $batch->start_date->format('Y-m-d'),
+                    'start_time' => $batch->start_date->format('H:i'),
+                    'end_date' => $batch->end_date->format('Y-m-d'),
+                    'end_time' => $batch->end_date->format('H:i'),
+                    'min_quota' => $batch->min_quota,
+                    'max_quota' => $batch->max_quota,
+                    'zoom_link' => $batch->zoom_link,
+                    'status' => $batch->status,
+                ],
+                'tasks' => $batch->tasks->map(function($task) {
+                    return [
+                        'id' => $task->id,
+                        'title' => $task->title,
+                        'description' => $task->description,
+                        'deadline' => $task->deadline->format('Y-m-d'),
+                        'is_active' => $task->is_active ?? true,
+                    ];
+                }),
+                'categories' => Category::orderBy('name')->get(['id', 'name']),
+                'trainers' => User::where('role_id', 3)->orderBy('name')->get(['id', 'name']),
+            ]);
+        }
+        
+        // If not AJAX, return 404
+        return abort(404);
+    }
+
+    /**
      * Update the specified batch
      */
     public function update(Request $request, Batch $batch)
@@ -256,6 +309,9 @@ class BatchController extends Controller
 
                 // Soft delete tasks that were removed
                 $batch->tasks()->whereNotIn('id', $existingTaskIds)->delete();
+            } else {
+                // If no tasks submitted, delete all existing tasks
+                $batch->tasks()->delete();
             }
 
             DB::commit();
@@ -291,10 +347,26 @@ class BatchController extends Controller
         }
 
         $batchTitle = $batch->title;
-        $batch->delete();
+        
+        DB::beginTransaction();
+        try {
+            // Delete related tasks first
+            $batch->tasks()->delete();
+            
+            // Delete the batch
+            $batch->delete();
+            
+            DB::commit();
 
-        return redirect()->route('coordinator.batches.index')
-            ->with('success', 'Batch "' . $batchTitle . '" berhasil dihapus!');
+            return redirect()->route('coordinator.batches.index')
+                ->with('success', 'Batch "' . $batchTitle . '" berhasil dihapus!');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors([
+                'error' => 'Terjadi kesalahan saat menghapus batch.'
+            ]);
+        }
     }
 
     /**

@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/Admin/UserController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -7,116 +6,260 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Branch;
-use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
-    use HasAdvancedFilters;
-
     /**
      * Display a listing of users with advanced filters
      */
     public function index(Request $request)
-{
-    // Start query
-    $query = User::with(['role', 'branch']);
+    {
+        // Start query with eager loading
+        $query = User::with(['role', 'branch']);
 
-    // Apply search filter
-    if ($search = $request->input('search')) {
-        $query->where(function($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%")
-              ->orWhereHas('role', fn($query) => $query->where('name', 'like', "%{$search}%"))
-              ->orWhereHas('branch', fn($query) => $query->where('name', 'like', "%{$search}%"));
-        });
+        // Apply search filter
+        if ($search = $request->input('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhereHas('role', fn($query) => $query->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('branch', fn($query) => $query->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        // Apply role filter
+        if ($roleId = $request->input('role_id')) {
+            $query->where('role_id', $roleId);
+        }
+
+        // Apply branch filter
+        if ($branchId = $request->input('branch_id')) {
+            $query->where('branch_id', $branchId);
+        }
+
+        // Get paginated results with query string preservation
+        $users = $query->orderBy('created_at', 'desc')
+                       ->paginate(10)
+                       ->withQueryString();
+
+        // Get filter options
+        $roles = Role::orderBy('name')->get();
+        $branches = Branch::orderBy('name')->get();
+
+        // Build filter options for component
+        $filterOptions = [
+            [
+                'name' => 'role_id',
+                'placeholder' => 'Semua Role',
+                'options' => collect([
+                    ['value' => '', 'label' => 'Semua Role']
+                ])->merge(
+                    $roles->map(fn($role) => [
+                        'value' => (string) $role->id,
+                        'label' => $role->name
+                    ])
+                )
+            ],
+            [
+                'name' => 'branch_id',
+                'placeholder' => 'Semua Cabang',
+                'options' => collect([
+                    ['value' => '', 'label' => 'Semua Cabang']
+                ])->merge(
+                    $branches->map(fn($branch) => [
+                        'value' => (string) $branch->id,
+                        'label' => $branch->name
+                    ])
+                )
+            ]
+        ];
+
+        // Count users by role for dashboard cards
+        $dashboardUserCounts = [
+            'totalHqCurriculumAdminUsers' => User::whereHas('role', fn($q) => $q->where('name', 'HQ Admin'))->count(),
+            'totalTrainingCoordinatorUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Training Coordinator'))->count(),
+            'totalTrainerUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Trainer'))->count(),
+            'totalBranchPicUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Branch Coordinator'))->count(),
+            'totalParticipantUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Participant'))->count(),
+        ];
+
+        return view('admin.role-permission', compact(
+            'users', 
+            'roles', 
+            'branches', 
+            'dashboardUserCounts',
+            'filterOptions'
+        ));
     }
 
-    // Apply role filter
-    if ($roleId = $request->input('role_id')) {
-        $query->where('role_id', $roleId);
+    /**
+     * Store a newly created user
+     */
+    public function store(Request $request)
+    {
+        // Get role first to check if branch is required
+        $role = Role::find($request->role_id);
+        
+        // Dynamic validation based on role
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'string', Password::min(8)],
+            'role_id' => ['required', 'exists:roles,id'],
+        ];
+
+        // Add branch_id validation if role requires it
+        if ($role && in_array($role->name, ['Branch Coordinator', 'Participant'])) {
+            $rules['branch_id'] = ['required', 'exists:branches,id'];
+        } else {
+            $rules['branch_id'] = ['nullable', 'exists:branches,id'];
+        }
+
+        $validated = $request->validate($rules, [
+            'branch_id.required' => 'Cabang wajib diisi untuk role ' . ($role?->name ?? 'ini'),
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role_id' => $validated['role_id'],
+            'branch_id' => $validated['branch_id'] ?? null,
+        ]);
+
+        // Log activity
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($user)
+            ->withProperties(['role' => $user->role->name, 'branch' => $user->branch?->name])
+            ->log('created user');
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User "' . $user->name . '" berhasil ditambahkan!');
     }
 
-    // Apply branch filter
-    if ($branchId = $request->input('branch_id')) {
-        $query->where('branch_id', $branchId);
+    /**
+     * Update the specified user
+     */
+    public function update(Request $request, User $user)
+    {
+        // Get role first to check if branch is required
+        $role = Role::find($request->role_id);
+        
+        // Dynamic validation based on role
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'role_id' => ['required', 'exists:roles,id'],
+            'password' => ['nullable', 'string', Password::min(8)],
+        ];
+
+        // Add branch_id validation if role requires it
+        if ($role && in_array($role->name, ['Branch Coordinator', 'Participant'])) {
+            $rules['branch_id'] = ['required', 'exists:branches,id'];
+        } else {
+            $rules['branch_id'] = ['nullable', 'exists:branches,id'];
+        }
+
+        $validated = $request->validate($rules, [
+            'branch_id.required' => 'Cabang wajib diisi untuk role ' . ($role?->name ?? 'ini'),
+        ]);
+
+        $updateData = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'role_id' => $validated['role_id'],
+            'branch_id' => $validated['branch_id'] ?? null,
+        ];
+
+        // Only update password if provided
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+
+        $user->update($updateData);
+
+        // Log activity
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($user)
+            ->withProperties(['role' => $user->role->name, 'branch' => $user->branch?->name])
+            ->log('updated user');
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User "' . $user->name . '" berhasil diperbarui!');
     }
 
-    // Get paginated results
-    $users = $query->orderBy('created_at', 'desc')
-                   ->paginate(15)
-                   ->withQueryString(); // PENTING: Preserve query string
+    /**
+     * Remove the specified user
+     */
+    public function destroy(User $user)
+    {
+        // Prevent deleting yourself
+        if ($user->id === auth()->id()) {
+            return back()->withErrors(['error' => 'Anda tidak dapat menghapus akun Anda sendiri!']);
+        }
 
-    // Get filter options
-    $roles = Role::orderBy('name')->get();
-    $branches = Branch::orderBy('name')->get();
+        // Check if user has related data
+        $hasRelations = $user->trainedBatches()->exists() || 
+                       $user->participatingBatches()->exists() ||
+                       $user->approvedParticipants()->exists();
 
-    // Build filter options for component
-    $filterOptions = [
-        [
-            'name' => 'role_id',
-            'placeholder' => 'Semua Role',
-            'options' => collect([
-                ['value' => '', 'label' => 'Semua Role']
-            ])->merge(
-                $roles->map(fn($role) => [
-                    'value' => (string) $role->id,
-                    'label' => $role->name
-                ])
-            )
-        ],
-        [
-            'name' => 'branch_id',
-            'placeholder' => 'Semua Cabang',
-            'options' => collect([
-                ['value' => '', 'label' => 'Semua Cabang']
-            ])->merge(
-                $branches->map(fn($branch) => [
-                    'value' => (string) $branch->id,
-                    'label' => $branch->name
-                ])
-            )
-        ]
-    ];
+        if ($hasRelations) {
+            return back()->withErrors([
+                'error' => 'User "' . $user->name . '" tidak dapat dihapus karena memiliki data terkait (batch, participants, dll). Pertimbangkan untuk menonaktifkan user ini.'
+            ]);
+        }
 
-    // Count active filters
-    $activeFiltersCount = collect(['search', 'role_id', 'branch_id'])
-        ->filter(fn($key) => $request->filled($key))
-        ->count();
+        $userName = $user->name;
 
-    // Count users by role for dashboard cards
-    $dashboardUserCounts = [
-        'totalHqCurriculumAdminUsers' => User::whereHas('role', fn($q) => $q->where('name', 'HQ Admin'))->count(),
-        'totalTrainingCoordinatorUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Training Coordinator'))->count(),
-        'totalTrainerUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Trainer'))->count(),
-        'totalBranchPicUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Branch Coordinator'))->count(),
-        'totalParticipantUsers' => User::whereHas('role', fn($q) => $q->where('name', 'Participant'))->count(),
-    ];
+        // Log before delete
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($user)
+            ->log('deleted user');
 
-    return view('admin.role-permission', compact(
-        'users', 
-        'roles', 
-        'branches', 
-        'dashboardUserCounts',
-        'filterOptions',
-        'activeFiltersCount'
-    ));
-}
+        $user->delete();
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User "' . $userName . '" berhasil dihapus!');
+    }
+
+    /**
+     * Export users to CSV
+     */
     public function export(Request $request)
     {
         // Apply same filters as index
         $query = User::with(['role', 'branch']);
         
-        $query = $this->applySearch($query, $request, ['name', 'email', 'role.name', 'branch.name']);
-        $query = $this->applyFilter($query, $request, 'role_id', 'role_id');
-        $query = $this->applyFilter($query, $request, 'branch_id', 'branch_id');
-        $query = $this->applyDateRange($query, $request);
+        if ($search = $request->input('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhereHas('role', fn($query) => $query->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('branch', fn($query) => $query->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($roleId = $request->input('role_id')) {
+            $query->where('role_id', $roleId);
+        }
+
+        if ($branchId = $request->input('branch_id')) {
+            $query->where('branch_id', $branchId);
+        }
         
-        $users = $query->get();
+        $users = $query->orderBy('created_at', 'desc')->get();
 
         return response()->streamDownload(function() use ($users) {
             $handle = fopen('php://output', 'w');
+            
+            // BOM for Excel UTF-8 support
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
             
             // Header
             fputcsv($handle, ['Nama', 'Email', 'Role', 'Cabang', 'Tanggal Dibuat']);
@@ -133,89 +276,6 @@ class UserController extends Controller
             }
             
             fclose($handle);
-        }, 'users-' . date('Y-m-d') . '.csv');
-    }
-
-    /**
-     * Store a newly created user
-     */
-    public function store(Request $request)
-{
-    $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-        'password' => ['required', 'string', 'min:8'],
-        'role_id' => ['required', 'exists:roles,id'],
-        'branch_id' => ['nullable', 'exists:branches,id'],
-        // 'token' tidak lagi divalidasi di sini
-    ]);
-
-    $role = Role::findOrFail($request->role_id);
-
-    // Jika role bukan Participant dan ada token yang diisi, simpan ke role (opsional untuk admin)
-    if ($role->name !== 'Participant' && $request->filled('token')) {
-        $role->update(['access_token' => $request->token]);
-    }
-
-    User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-        'role_id' => $request->role_id,
-        'branch_id' => $request->branch_id,
-    ]);
-
-    return redirect()->route('admin.users.index')
-        ->with('success', 'User berhasil ditambahkan!');
-}
-
-public function update(Request $request, User $user)
-{
-    $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
-        'role_id' => ['required', 'exists:roles,id'],
-        'branch_id' => ['nullable', 'exists:branches,id'],
-        'password' => ['nullable', 'string', 'min:8'],
-        // token tidak divalidasi lagi
-    ]);
-
-    $updateData = [
-        'name' => $request->name,
-        'email' => $request->email,
-        'role_id' => $request->role_id,
-        'branch_id' => $request->branch_id,
-    ];
-
-    if ($request->filled('password')) {
-        $updateData['password'] = Hash::make($request->password);
-    }
-
-    $user->update($updateData);
-
-    // Opsional: update access_token role jika diisi dan bukan Participant
-    $newRole = Role::find($request->role_id);
-    if ($newRole->name !== 'Participant' && $request->filled('token')) {
-        $newRole->update(['access_token' => $request->token]);
-    }
-
-    return redirect()->route('admin.users.index')
-        ->with('success', 'User berhasil diperbarui!');
-}
-    /**
-     * Remove the specified user
-     */
-    public function destroy(User $user)
-    {
-        // Prevent deleting yourself
-        if ($user->id === auth()->id()) {
-            return back()->withErrors(['error' => 'Anda tidak dapat menghapus akun Anda sendiri!']);
-        }
-
-        $userName = $user->name;
-        $user->delete();
-
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User "' . $userName . '" berhasil dihapus!');
+        }, 'users-' . date('Y-m-d-His') . '.csv');
     }
 }

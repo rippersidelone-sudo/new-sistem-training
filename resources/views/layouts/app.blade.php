@@ -41,34 +41,9 @@
     @stack('styles')
 </head>
 <body class="font-sans antialiased bg-gray-100">
-    <div x-data="{ 
-        openAddCategory: false,
-        openEditCategory: false,
-        openDeleteCategory: false,
-        openAddBatch: false,
-        openEditBatch: false,
-        openDeleteBatch: false,
-        openAddUser: false,
-        openEditUser: false,
-        openDeleteUser: false,
-        deleteUserId: null,
-        deleteUserName: '',
-        deleteUserRole: '',
-        selectedUser: {},
-        selectedCategory: {},
-        selectedBatch: {},
-        tasks: [],
-        addTask() {
-            this.tasks.push({
-                title: '',
-                description: '',
-                deadline: ''
-            });
-        },
-        removeTask(index) {
-            this.tasks.splice(index, 1);
-        }
-    }" class="min-h-screen">
+    {{-- REMOVED: Global x-data yang menyebabkan konflik --}}
+    {{-- Setiap halaman akan define x-data sendiri sesuai kebutuhan --}}
+    <div class="min-h-screen">
 
         {{-- Sidebar akan di-include oleh layout turunan --}}
         @yield('sidebar')
@@ -205,7 +180,7 @@
 
     </div>
 
-    {{-- Scripts dari child views --}}
+    {{-- CRITICAL: Scripts dari child views (modal edit butuh ini!) --}}
     @stack('scripts')
 </body>
 </html>

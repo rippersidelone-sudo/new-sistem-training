@@ -6,6 +6,7 @@
         <p class="text-[#737373] mt-2 font-medium">Selamat datang, {{ Auth::user()->name }}</p>
     </div>
 
+    {{-- STATISTICS CARDS --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8 px-2">
         @include('dashboard.card', [
             'title' => 'Total Batch',
@@ -54,22 +55,24 @@
             'value' => $totalParticipants,
             'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                class="icon icon-tabler icons-tabler-outline icon-tabler-users mb-8"><path stroke="none" d="M0 0h24v24H0z" 
-                fill="none"/><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                class="icon icon-tabler icons-tabler-outline icon-tabler-users mb-8"><path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" /></svg>',
             'color' => 'text-[#AE00FF]'
         ])
     </div>
 
+    {{-- CHARTS SECTION --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 px-2">
 
-        <!-- Partisipasi per Batch -->
+        {{-- Partisipasi per Batch Status --}}
         <div class="bg-white border rounded-2xl p-6 flex flex-col">
-            <h2 class="text-lg font-semibold mb-4">Partisipasi per Batch</h2>
+            <h2 class="text-lg font-semibold mb-4">Partisipasi per Status Batch</h2>
             
             <div class="flex-1" style="min-height: 300px; position: relative;">
                 <canvas id="batchChart"></canvas>
             </div>
+            
             <div class="flex gap-6 text-sm font-medium text-gray-700 justify-center mt-2">
                 <div class="flex items-center gap-2">
                     <span class="w-4 h-3 bg-[#3B82F6]"></span>
@@ -86,9 +89,9 @@
             </div>
         </div>
 
-        <!-- Distribusi Status Peserta -->
+        {{-- Recent Batches List --}}
         <div class="bg-white border rounded-2xl p-6 flex flex-col">
-            <h2 class="text-lg font-semibold mb-4">Distribusi Status Peserta</h2>
+            <h2 class="text-lg font-semibold mb-4">Batch Terbaru</h2>
 
             @if($recentBatches->isEmpty())
             <div class="text-center py-12 text-gray-500">
@@ -102,8 +105,8 @@
             <div class="space-y-4 max-h-[440px] overflow-y-auto pr-1">
                 @foreach($recentBatches as $batch)
                 <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
-                    <div>
-                        <h3 class="text-md font-semibold text-gray-800">
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-md font-semibold text-gray-800 truncate">
                             {{ $batch['title'] }}
                         </h3>
                         <p class="text-md font-medium text-[#737373] flex flex-wrap gap-2">
@@ -113,7 +116,7 @@
                         </p>
                     </div>
 
-                    <span class="px-3 py-1 text-sm uppercase font-medium rounded-full {{ badgeStatus($batch['status']) }}">
+                    <span class="px-3 py-1 text-sm uppercase font-medium rounded-full {{ badgeStatus($batch['status']) }} ml-4 whitespace-nowrap">
                         {{ $batch['status'] }}
                     </span>
                 </div>
@@ -123,6 +126,7 @@
         </div>
     </div>
 
+    {{-- PENDING PARTICIPANTS SECTION --}}
     <div class="bg-white border rounded-2xl p-6 mt-8 mx-2" x-data="{ showAll: false }">
         <div class="space-y-4">
             <div class="flex items-center justify-between rounded-xl">
@@ -135,10 +139,10 @@
                     </p>
                 </div>
                 @if($pendingParticipants->isNotEmpty())
-                <button @click="showAll = !showAll" class="px-4 py-2 text-md font-semibold rounded-lg bg-[#0059FF] text-white cursor-pointer hover:bg-blue-700 transition">
-                    <span x-show="!showAll">Lihat Semua</span>
-                    <span x-show="showAll">Sembunyikan</span>
-                </button>
+                <a href="{{ route('coordinator.participants.index', ['status' => 'Pending']) }}" 
+                   class="px-4 py-2 text-md font-semibold rounded-lg bg-[#0059FF] text-white cursor-pointer hover:bg-blue-700 transition">
+                    Lihat Semua
+                </a>
                 @endif
             </div>
             
@@ -153,20 +157,20 @@
             </div>
             @else
             <div class="space-y-4 max-h-[440px] overflow-y-auto pr-1">
-                @foreach($pendingParticipants as $participant)
-                <div x-show="showAll" class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
-                    <div>
+                @foreach($pendingParticipants->take(5) as $participant)
+                <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
+                    <div class="flex-1 min-w-0">
                         <h3 class="text-md font-semibold text-gray-800">
                             {{ $participant['user_name'] }}
                         </h3>
-                        <p class="text-md font-medium text-[#737373] flex flex-wrap gap-2">
+                        <p class="text-md font-medium text-[#737373] truncate">
                             {{ $participant['batch_title'] }}
                         </p>
                         <p class="text-sm text-gray-500 mt-1">
                             Daftar: {{ formatDateTime($participant['created_at']) }}
                         </p>
                     </div>
-                    <span class="px-3 py-1 text-sm uppercase font-medium rounded-full bg-gray-200 text-gray-700">
+                    <span class="px-3 py-1 text-sm uppercase font-medium rounded-full bg-gray-200 text-gray-700 ml-4 whitespace-nowrap">
                         Pending
                     </span>
                 </div>

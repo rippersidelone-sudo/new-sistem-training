@@ -1,3 +1,4 @@
+<!-- resources/views/profile/partials/update-password-form.blade.php -->
 <section>
     <header>
         <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">

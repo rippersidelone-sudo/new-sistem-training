@@ -1,6 +1,16 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('content')
+<div x-data="{ 
+    openAddUser: false, 
+    openEditUser: false, 
+    openDeleteUser: false,
+    selectedUser: {},
+    deleteUserId: null,
+    deleteUserName: '',
+    deleteUserRole: ''
+}">
+
     <div class="px-2 flex justify-between items-center">
         <div>
             <h1 class="text-2xl font-semibold">Role & Permission Management</h1>
@@ -169,7 +179,6 @@
         </div>
     </div>
 
-
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-8 px-2">
         @include('dashboard.card', [
             'title'=>'HQ Curriculum Admin',
@@ -222,9 +231,9 @@
             'color'=>'text-[#5EABD6]'
         ])
     </div>
-    
-    <!-- Daftar User -->
-<div class="grid gap-6 mt-8 px-2">
+
+    {{-- Di section Daftar User - Role & Permission Management --}}
+<div class="grid gap-6 mt-8 px-2" data-filter-content>
     <div class="bg-white border rounded-2xl p-6">
         <div class="flex items-center justify-between mb-5">
             <div>
@@ -233,16 +242,16 @@
             </div>
         </div>
 
-        {{-- Filter Bar (Di dalam Daftar User) --}}
+        {{-- Filter Bar dengan ROLE dan BRANCH --}}
         <div class="mb-6">
-            <x-filter-bar 
+            <x-filter-bar
                 :action="route('admin.users.index')"
                 searchPlaceholder="Cari user (nama, email, role, cabang)..."
                 :filters="$filterOptions"
-                :activeFiltersCount="$activeFiltersCount"
             />
         </div>
-        
+       
+        {{-- Table content --}}
         <div class="overflow-x-auto">
             <table class="min-w-full border border-gray-200 rounded-xl overflow-hidden">
                 <thead class="bg-[#F1F1F1]">
@@ -349,213 +358,210 @@
             </div>
         </div>
         @endif
-
-            <!-- Modal Edit User -->
-            <div x-show="openEditUser" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                <div @click.outside="openEditUser = false" 
-                    class="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-                    
-                    <!-- Header Modal Hijau -->
-                    <div class="bg-[#10AF13] px-6 py-5 text-white flex items-center justify-between flex-shrink-0">
-                        <div>
-                            <h2 class="text-xl font-bold">Edit User</h2>
-                            <p class="text-sm opacity-90">Perbarui informasi user</p>
-                        </div>
-                        <button @click="openEditUser = false" class="text-white hover:text-gray-200 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 6l-12 12M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <!-- Body Modal -->
-                    <div class="p-6 overflow-y-auto flex-1">
-                        @if ($errors->any())
-                            <div class="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200">
-                                <ul class="list-disc list-inside space-y-1">
-                                    @foreach ($errors->all() as $error)
-                                        <li class="text-sm">{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                        @endif
-
-                        <form method="POST" :action="`{{ route('admin.users.index') }}/${selectedUser.id}`"
-                            x-data="{
-                                editRoleId: selectedUser.role_id,
-                                editBranchId: selectedUser.branch_id,
-                                editToken: '',
-                                showBranchEdit: false,
-                                showTokenEdit: false,
-                                showPasswordEdit: false,
-                                roles: {{ json_encode($roles->map(fn($r) => ['id' => $r->id, 'name' => $r->name])) }},
-                                updateFieldsVisibility() {
-                                    const role = this.roles.find(r => r.id == this.editRoleId);
-                                    
-                                    this.showBranchEdit = role && (role.name === 'Branch Coordinator' || role.name === 'Participant');
-                                    this.showTokenEdit = role && role.name !== 'Participant';
-                                    
-                                    if (!this.showBranchEdit) {
-                                        this.editBranchId = null;
-                                    }
-                                    if (!this.showTokenEdit) {
-                                        this.editToken = '';
-                                    }
-                                },
-                                generateRandomToken() {
-                                    this.editToken = Math.random().toString(36).substring(2, 10).toUpperCase() + 
-                                                    Math.random().toString(36).substring(2, 6).toUpperCase();
-                                }
-                            }"
-                            x-init="$watch('editRoleId', () => updateFieldsVisibility()); updateFieldsVisibility()">
-                            @csrf
-                            @method('PUT')
-
-                            <div class="space-y-5">
-                                <!-- Nama -->
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Nama <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="text" 
-                                        name="name" 
-                                        required 
-                                        :value="selectedUser.name"
-                                        placeholder="Masukkan nama lengkap"
-                                        class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition">
-                                </div>
-
-                                <!-- Email -->
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Email <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="email" 
-                                        name="email" 
-                                        required 
-                                        :value="selectedUser.email"
-                                        placeholder="email@example.com"
-                                        class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition">
-                                </div>
-
-                                <!-- Role -->
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Role <span class="text-red-500">*</span>
-                                    </label>
-                                    <select name="role_id" 
-                                            required 
-                                            x-model="editRoleId"
-                                            class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition cursor-pointer">
-                                        <option value="">-- Pilih Role --</option>
-                                        @foreach ($roles as $role)
-                                            <option value="{{ $role->id }}">
-                                                {{ $role->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <!-- Cabang (Conditional) -->
-                                <div x-show="showBranchEdit" x-transition>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Cabang <span class="text-red-500" x-show="showBranchEdit">*</span>
-                                    </label>
-                                    <select name="branch_id" 
-                                            x-model="editBranchId"
-                                            :required="showBranchEdit"
-                                            class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition cursor-pointer">
-                                        <option value="">-- Pilih Cabang --</option>
-                                        @foreach ($branches as $branch)
-                                            <option value="{{ $branch->id }}">
-                                                {{ $branch->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <p class="text-xs text-gray-500 mt-1">Wajib untuk Branch Coordinator dan Participant</p>
-                                </div>
-
-                                
-
-                                <!-- Password dengan Toggle (Optional) -->
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Password Baru <span class="text-gray-400">(Opsional)</span>
-                                    </label>
-                                    <div class="relative">
-                                        <input :type="showPasswordEdit ? 'text' : 'password'" 
-                                            name="password" 
-                                            placeholder="Kosongkan jika tidak ingin mengubah"
-                                            class="w-full px-4 py-3 pr-12 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition">
-                                        
-                                        <!-- Toggle Button -->
-                                        <button type="button" 
-                                                @click="showPasswordEdit = !showPasswordEdit"
-                                                class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600 transition">
-                                            <!-- Eye Open -->
-                                            <svg x-show="!showPasswordEdit" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                                                <circle cx="12" cy="12" r="3"/>
-                                            </svg>
-                                            <!-- Eye Closed -->
-                                            <svg x-show="showPasswordEdit" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" x-cloak>
-                                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
-                                                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
-                                                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
-                                                <line x1="2" x2="22" y1="2" y2="22"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-1">Minimal 8 karakter. Kosongkan jika tidak ingin mengubah</p>
-                                </div>
-                            </div>
-
-                            <!-- Tombol Aksi -->
-                            <div class="mt-8 flex justify-end gap-4 pt-6 border-t">
-                                <button type="button" 
-                                        @click="openEditUser = false"
-                                        class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
-                                    Batal
-                                </button>
-                                <button type="submit"
-                                        class="px-6 py-3 bg-[#10AF13] text-white rounded-lg hover:bg-[#0e8e0f] transition font-medium shadow-lg shadow-[#10AF13]/30">
-                                    <span class="flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M5 12l5 5l10 -10" />
-                                        </svg>
-                                        Simpan Perubahan
-                                    </span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+    </div>
+</div>
+    <!-- Modal Edit User -->
+    <div x-show="openEditUser" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div @click.outside="openEditUser = false" 
+            class="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            
+            <!-- Header Modal Hijau -->
+            <div class="bg-[#10AF13] px-6 py-5 text-white flex items-center justify-between flex-shrink-0">
+                <div>
+                    <h2 class="text-xl font-bold">Edit User</h2>
+                    <p class="text-sm opacity-90">Perbarui informasi user</p>
                 </div>
+                <button @click="openEditUser = false" class="text-white hover:text-gray-200 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6l-12 12M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
 
-            <!-- Modal Delete User -->
-            <div x-show="openDeleteUser" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                <div @click.outside="openDeleteUser = false" class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Hapus User?</h2>
-                    <p class="text-gray-600 mb-6">
-                        Yakin ingin menghapus <span class="font-semibold" x-text="deleteUserName"></span> 
-                        sebagai <span class="font-semibold" x-text="deleteUserRole"></span>?
-                    </p>
+            <!-- Body Modal -->
+            <div class="p-6 overflow-y-auto flex-1">
+                @if ($errors->any())
+                    <div class="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200">
+                        <ul class="list-disc list-inside space-y-1">
+                            @foreach ($errors->all() as $error)
+                                <li class="text-sm">{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
-                    <div class="flex justify-end gap-4">
-                        <button @click="openDeleteUser = false"
-                                class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                <form method="POST" :action="`{{ route('admin.users.index') }}/${selectedUser.id}`"
+                    x-data="{
+                        editRoleId: selectedUser.role_id,
+                        editBranchId: selectedUser.branch_id,
+                        editToken: '',
+                        showBranchEdit: false,
+                        showTokenEdit: false,
+                        showPasswordEdit: false,
+                        roles: {{ json_encode($roles->map(fn($r) => ['id' => $r->id, 'name' => $r->name])) }},
+                        updateFieldsVisibility() {
+                            const role = this.roles.find(r => r.id == this.editRoleId);
+                            
+                            this.showBranchEdit = role && (role.name === 'Branch Coordinator' || role.name === 'Participant');
+                            this.showTokenEdit = role && role.name !== 'Participant';
+                            
+                            if (!this.showBranchEdit) {
+                                this.editBranchId = null;
+                            }
+                            if (!this.showTokenEdit) {
+                                this.editToken = '';
+                            }
+                        },
+                        generateRandomToken() {
+                            this.editToken = Math.random().toString(36).substring(2, 10).toUpperCase() + 
+                                            Math.random().toString(36).substring(2, 6).toUpperCase();
+                        }
+                    }"
+                    x-init="$watch('editRoleId', () => updateFieldsVisibility()); updateFieldsVisibility()">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="space-y-5">
+                        <!-- Nama -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Nama <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" 
+                                name="name" 
+                                required 
+                                :value="selectedUser.name"
+                                placeholder="Masukkan nama lengkap"
+                                class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition">
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Email <span class="text-red-500">*</span>
+                            </label>
+                            <input type="email" 
+                                name="email" 
+                                required 
+                                :value="selectedUser.email"
+                                placeholder="email@example.com"
+                                class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition">
+                        </div>
+
+                        <!-- Role -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Role <span class="text-red-500">*</span>
+                            </label>
+                            <select name="role_id" 
+                                    required 
+                                    x-model="editRoleId"
+                                    class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition cursor-pointer">
+                                <option value="">-- Pilih Role --</option>
+                                @foreach ($roles as $role)
+                                    <option value="{{ $role->id }}">
+                                        {{ $role->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Cabang (Conditional) -->
+                        <div x-show="showBranchEdit" x-transition>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Cabang <span class="text-red-500" x-show="showBranchEdit">*</span>
+                            </label>
+                            <select name="branch_id" 
+                                    x-model="editBranchId"
+                                    :required="showBranchEdit"
+                                    class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition cursor-pointer">
+                                <option value="">-- Pilih Cabang --</option>
+                                @foreach ($branches as $branch)
+                                    <option value="{{ $branch->id }}">
+                                        {{ $branch->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Wajib untuk Branch Coordinator dan Participant</p>
+                        </div>
+
+                        <!-- Password dengan Toggle (Optional) -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Password Baru <span class="text-gray-400">(Opsional)</span>
+                            </label>
+                            <div class="relative">
+                                <input :type="showPasswordEdit ? 'text' : 'password'" 
+                                    name="password" 
+                                    placeholder="Kosongkan jika tidak ingin mengubah"
+                                    class="w-full px-4 py-3 pr-12 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition">
+                                
+                                <!-- Toggle Button -->
+                                <button type="button" 
+                                        @click="showPasswordEdit = !showPasswordEdit"
+                                        class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600 transition">
+                                    <!-- Eye Open -->
+                                    <svg x-show="!showPasswordEdit" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                    <!-- Eye Closed -->
+                                    <svg x-show="showPasswordEdit" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" x-cloak>
+                                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                                        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                                        <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                                        <line x1="2" x2="22" y1="2" y2="22"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Minimal 8 karakter. Kosongkan jika tidak ingin mengubah</p>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Aksi -->
+                    <div class="mt-8 flex justify-end gap-4 pt-6 border-t">
+                        <button type="button" 
+                                @click="openEditUser = false"
+                                class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
                             Batal
                         </button>
-                        <form :action="`/admin/users/${deleteUserId}`" method="POST">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit"
-                                    class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
-                                Hapus
-                            </button>
-                        </form>
+                        <button type="submit"
+                                class="px-6 py-3 bg-[#10AF13] text-white rounded-lg hover:bg-[#0e8e0f] transition font-medium shadow-lg shadow-[#10AF13]/30">
+                            <span class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12l5 5l10 -10" />
+                                </svg>
+                                Simpan Perubahan
+                            </span>
+                        </button>
                     </div>
-                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Delete User -->
+    <div x-show="openDeleteUser" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div @click.outside="openDeleteUser = false" class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Hapus User?</h2>
+            <p class="text-gray-600 mb-6">
+                Yakin ingin menghapus <span class="font-semibold" x-text="deleteUserName"></span> 
+                sebagai <span class="font-semibold" x-text="deleteUserRole"></span>?
+            </p>
+
+            <div class="flex justify-end gap-4">
+                <button @click="openDeleteUser = false"
+                        class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    Batal
+                </button>
+                <form :action="`/admin/users/${deleteUserId}`" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                            class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
+                        Hapus
+                    </button>
+                </form>
             </div>
         </div>
     </div>

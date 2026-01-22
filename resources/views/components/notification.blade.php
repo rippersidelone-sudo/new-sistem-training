@@ -1,3 +1,4 @@
+<!-- resources/views/components/notification.blade.php -->
 @props(['type' => 'success'])
 
 @php

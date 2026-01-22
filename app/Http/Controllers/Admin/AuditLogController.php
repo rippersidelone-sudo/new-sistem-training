@@ -1,175 +1,165 @@
 <?php
 // app/Http/Controllers/Admin/AuditLogController.php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
-use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
+use Spatie\Activitylog\Models\Activity;
 
 class AuditLogController extends Controller
 {
-    use HasAdvancedFilters;
-
     public function index(Request $request)
     {
         $roles = Role::orderBy('name')->get();
         
-        // Get all audit logs (dummy data for now)
-        // TODO: Implement proper audit logging with spatie/laravel-activitylog
-        $allLogs = collect([
-            [
-                'id' => 1,
-                'action' => 'update_batch',
-                'role' => 'Training Coordinator',
-                'role_id' => 2,
-                'user' => 'Koordinator Pelatihan',
-                'description' => 'Update batch: Python Game Developer Batch 1',
-                'created_at' => '2025-01-09 11:53:00',
-            ],
-            [
-                'id' => 2,
-                'action' => 'create_batch',
-                'role' => 'Training Coordinator',
-                'role_id' => 2,
-                'user' => 'Koordinator Pelatihan',
-                'description' => 'Membuat batch baru: Python Game Developer Batch 1',
-                'created_at' => '2025-01-08 18:30:00',
-            ],
-            [
-                'id' => 3,
-                'action' => 'update',
-                'role' => 'Training Coordinator',
-                'role_id' => 2,
-                'user' => 'Koordinator Pelatihan',
-                'description' => 'Mengubah status batch menjadi ONGOING',
-                'created_at' => '2025-01-07 16:00:00',
-            ],
-            [
-                'id' => 4,
-                'action' => 'approve',
-                'role' => 'Branch Coordinator',
-                'role_id' => 4,
-                'user' => 'PIC Jakarta',
-                'description' => 'Menyetujui pendaftaran peserta: Guru Peserta',
-                'created_at' => '2025-01-06 22:20:00',
-            ],
-            [
-                'id' => 5,
-                'action' => 'validate',
-                'role' => 'Trainer',
-                'role_id' => 3,
-                'user' => 'Ahmad',
-                'description' => 'Validasi kehadiran peserta: Guru Peserta',
-                'created_at' => '2025-01-05 17:05:00',
-            ],
-            [
-                'id' => 6,
-                'action' => 'submit',
-                'role' => 'Participant',
-                'role_id' => 5,
-                'user' => 'Guru Peserta',
-                'description' => 'Submit tugas: Game Sederhana dengan Pygame',
-                'created_at' => '2025-01-04 22:30:00',
-            ],
-            [
-                'id' => 7,
-                'action' => 'create',
-                'role' => 'HQ Admin',
-                'role_id' => 1,
-                'user' => 'Admin Pusat',
-                'description' => 'Membuat user baru: Trainer Baru',
-                'created_at' => '2025-01-03 10:15:00',
-            ],
-            [
-                'id' => 8,
-                'action' => 'delete',
-                'role' => 'HQ Admin',
-                'role_id' => 1,
-                'user' => 'Admin Pusat',
-                'description' => 'Menghapus user: User Lama',
-                'created_at' => '2025-01-02 14:20:00',
-            ],
-            [
-                'id' => 9,
-                'action' => 'reject',
-                'role' => 'Training Coordinator',
-                'role_id' => 2,
-                'user' => 'Koordinator Pelatihan',
-                'description' => 'Menolak pendaftaran peserta: Peserta X karena tidak memenuhi syarat',
-                'created_at' => '2025-01-01 09:00:00',
-            ],
-        ]);
+        // Build query
+        $query = Activity::with(['causer.role', 'subject'])
+            ->latest();
 
-        // Apply filters
-        $filteredLogs = $allLogs;
-
-        // Search filter
+        // Search filter (user atau description)
         if ($search = $request->input('search')) {
-            $filteredLogs = $filteredLogs->filter(function($log) use ($search) {
-                return stripos($log['user'], $search) !== false || 
-                       stripos($log['description'], $search) !== false;
+            $query->where(function($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhereHas('causer', function($query) use ($search) {
+                      $query->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 
         // Action filter
         if ($action = $request->input('action')) {
-            $filteredLogs = $filteredLogs->filter(function($log) use ($action) {
-                return $log['action'] === $action;
-            });
+            $query->where('event', $action);
         }
 
         // Role filter
         if ($roleId = $request->input('role_id')) {
-            $filteredLogs = $filteredLogs->filter(function($log) use ($roleId) {
-                return $log['role_id'] == $roleId;
+            $query->whereHas('causer', function($q) use ($roleId) {
+                $q->where('role_id', $roleId);
             });
         }
 
-        // Count active filters
-        $activeFiltersCount = $this->getActiveFiltersCount($request, [
-            'search', 'action', 'role_id'
-        ]);
+        // Get results (limit 100 untuk performa)
+        $activities = $query->take(100)->get();
 
-        // Build filter options for component
+        // Transform to match view format
+        $auditLogs = $activities->map(function($activity) {
+            return [
+                'id' => $activity->id,
+                'action' => $activity->event,
+                'role' => $activity->causer?->role?->name ?? 'System',
+                'role_id' => $activity->causer?->role_id,
+                'user' => $activity->causer?->name ?? 'System',
+                'description' => $this->formatDescription($activity),
+                'created_at' => $activity->created_at->toDateTimeString(),
+            ];
+        });
+
+        // Count active filters
+        $activeFiltersCount = collect(['search', 'action', 'role_id'])
+            ->filter(fn($key) => $request->filled($key))
+            ->count();
+
+        // Build filter options
         $filterOptions = [
-            [
-                'name' => 'action',
-                'placeholder' => 'Semua Aksi',
-                'options' => collect([
-                    ['value' => '', 'label' => 'Semua Aksi'],
-                    ['value' => 'create', 'label' => 'CREATE'],
-                    ['value' => 'update', 'label' => 'UPDATE'],
-                    ['value' => 'delete', 'label' => 'DELETE'],
-                    ['value' => 'approve', 'label' => 'APPROVE'],
-                    ['value' => 'reject', 'label' => 'REJECT'],
-                    ['value' => 'validate', 'label' => 'VALIDATE'],
-                    ['value' => 'submit', 'label' => 'SUBMIT'],
-                ])
-            ],
-            [
-                'name' => 'role_id',
-                'placeholder' => 'Semua Role',
-                'options' => collect([
-                    ['value' => '', 'label' => 'Semua Role']
+        [
+            'name' => 'action',
+            'placeholder' => 'Semua Aksi',
+            'options' => collect([
+                ['value' => '', 'label' => 'Semua Aksi'],
+                ['value' => 'created', 'label' => 'CREATE'],
+                ['value' => 'updated', 'label' => 'UPDATE'],
+                ['value' => 'deleted', 'label' => 'DELETE'],
+            ])
+        ],
+        [
+            'name' => 'role_id',
+            'placeholder' => 'Semua Role',
+            'options' => collect([
+                ['value' => '', 'label' => 'Semua Role']
                 ])->merge(
                     $roles->map(fn($role) => [
-                        'value' => $role->id,
+                        'value' => (string) $role->id,
                         'label' => $role->name
                     ])
                 )
             ]
         ];
 
-        // Sort by latest
-        $auditLogs = $filteredLogs->sortByDesc('created_at')->values();
-
         return view('admin.audit-log', compact(
-            'roles', 
+            'roles',
             'auditLogs',
             'filterOptions',
             'activeFiltersCount'
         ));
+    }
+
+    /**
+     * Format activity description untuk display
+     */
+    private function formatDescription(Activity $activity): string
+    {
+        $subject = $activity->subject;
+        $causer = $activity->causer;
+        $event = $activity->event;
+
+        // Format berdasarkan subject type
+        if ($activity->subject_type === 'App\Models\Batch') {
+            $batchTitle = $activity->properties->get('attributes')['title'] ?? 
+                         $activity->properties->get('old')['title'] ?? 
+                         $subject?->title ?? 
+                         'Unknown Batch';
+            
+            return match($event) {
+                'created' => "Membuat batch baru: {$batchTitle}",
+                'updated' => $this->getBatchUpdateDescription($activity),
+                'deleted' => "Menghapus batch: {$batchTitle}",
+                default => "{$event} batch: {$batchTitle}"
+            };
+        }
+
+        if ($activity->subject_type === 'App\Models\User') {
+            $userName = $activity->properties->get('attributes')['name'] ?? 
+                       $activity->properties->get('old')['name'] ?? 
+                       $subject?->name ?? 
+                       'Unknown User';
+            
+            return match($event) {
+                'created' => "Membuat user baru: {$userName}",
+                'updated' => "Mengubah data user: {$userName}",
+                'deleted' => "Menghapus user: {$userName}",
+                default => "{$event} user: {$userName}"
+            };
+        }
+
+        if ($activity->subject_type === 'App\Models\BatchParticipant') {
+            return match($event) {
+                'created' => "Menyetujui pendaftaran peserta",
+                'updated' => "Mengubah status pendaftaran peserta",
+                default => "{$event} participant"
+            };
+        }
+
+        // Default description
+        return $activity->description ?? ucfirst($event) . ' ' . class_basename($activity->subject_type ?? 'item');
+    }
+
+    /**
+     * Get specific description untuk batch update
+     */
+    private function getBatchUpdateDescription(Activity $activity): string
+    {
+        $changes = $activity->properties->get('attributes', []);
+        $old = $activity->properties->get('old', []);
+
+        if (isset($changes['status']) && isset($old['status'])) {
+            return "Mengubah status batch dari {$old['status']} menjadi {$changes['status']}";
+        }
+
+        if (isset($changes['title'])) {
+            return "Update batch: {$changes['title']}";
+        }
+
+        return "Mengubah data batch";
     }
 }

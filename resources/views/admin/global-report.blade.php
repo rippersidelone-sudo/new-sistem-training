@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('content')
     <div class="px-2 flex justify-between items-center">
@@ -34,125 +34,37 @@
         </div>
     </div>
 
-    <!-- Filter Form -->
-    <form method="GET" action="{{ route('admin.reports.index') }}" id="filterForm">
-        <div class="grid grid-cols-1 border lg:grid-cols-2 gap-4 px-5 bg-white py-6 rounded-2xl mt-8 mx-2">
-
-            <!-- Dropdown Bulan -->
-            <div x-data="{ 
-                open: false, 
-                value: '{{ request('month', '') }}', 
-                label: '{{ request('month') ? date('F Y', strtotime(request('month') . '-01')) : 'Pilih Bulan' }}' 
-            }" class="relative w-full">
-                <h2 class="text-md font-semibold text-[#737373] mb-2">
-                    Pilih Bulan
-                </h2>
-                <button type="button" @click="open = !open"
-                    :class="open ? 'border-[#10AF13] ring-1 ring-[#10AF13]' : 'border-gray-300'"
-                    class="w-full px-3 py-2 rounded-lg border cursor-pointer flex justify-between items-center text-sm bg-white transition">
-                    <span x-text="label"></span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-down">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M6 9l6 6l6 -6" />
-                    </svg>
-                </button>
-
-                <!-- Dropdown Content -->
-                <div x-show="open" @click.outside="open = false" x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                    x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
-                    x-transition:leave-end="opacity-0 scale-95"
-                    class="absolute z-20 mt-2 w-full bg-white border rounded-lg shadow-md overflow-hidden max-h-60 overflow-y-auto">
-
-                    <!-- Clear Filter -->
-                    <div @click="value = ''; label = 'Pilih Bulan'; open = false; $refs.monthInput.value = ''; document.getElementById('filterForm').submit();"
-                        class="px-3 py-2 text-sm cursor-pointer flex justify-between items-center hover:bg-gray-100">
-                        <span>Semua Bulan</span>
-                        <svg x-show="value === ''" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                            stroke="#10AF13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                            <path d="M5 12l5 5l10 -10" />
-                        </svg>
-                    </div>
-
-                    <!-- Last 12 Months -->
-                    @for($i = 0; $i < 12; $i++)
-                        @php
+    {{-- Filter Bar Component --}}
+    <div class="mt-8 mx-2">
+        <x-filter-bar
+            :action="route('admin.reports.index')"
+            :hideSearch="true"
+            :filters="[
+                [
+                    'name' => 'month',
+                    'placeholder' => 'Semua Bulan',
+                    'options' => array_merge(
+                        [['value' => '', 'label' => 'Semua Bulan']],
+                        collect(range(0, 11))->map(function($i) {
                             $date = now()->subMonths($i);
-                            $monthValue = $date->format('Y-m');
-                            $monthLabel = $date->format('F Y');
-                        @endphp
-                        <div @click="value = '{{ $monthValue }}'; label = '{{ $monthLabel }}'; open = false; $refs.monthInput.value = value; document.getElementById('filterForm').submit();"
-                            class="px-3 py-2 text-sm cursor-pointer flex justify-between items-center hover:bg-gray-100">
-                            <span>{{ $monthLabel }}</span>
-                            <svg x-show="value === '{{ $monthValue }}'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                                stroke="#10AF13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M5 12l5 5l10 -10" />
-                            </svg>
-                        </div>
-                    @endfor
-                </div>
-
-                <input type="hidden" name="month" x-ref="monthInput" :value="value">
-            </div>
-
-            <!-- Dropdown Cabang -->
-            <div x-data="{ 
-                open: false, 
-                value: '{{ request('branch_id', '') }}', 
-                label: '{{ request('branch_id') ? $branches->firstWhere('id', request('branch_id'))->name ?? 'Semua Cabang' : 'Semua Cabang' }}' 
-            }" class="relative w-full">
-                <h2 class="text-md font-semibold text-[#737373] mb-2">
-                    Pilih Cabang
-                </h2>
-                <button type="button" @click="open = !open"
-                    :class="open ? 'border-[#10AF13] ring-1 ring-[#10AF13]' : 'border-gray-300'"
-                    class="w-full px-3 py-2 rounded-lg border cursor-pointer flex justify-between items-center text-sm bg-white transition">
-                    <span x-text="label"></span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-down">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M6 9l6 6l6 -6" />
-                    </svg>
-                </button>
-
-                <div x-show="open" @click.outside="open = false" x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                    x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
-                    x-transition:leave-end="opacity-0 scale-95"
-                    class="absolute z-20 mt-2 w-full bg-white border rounded-lg shadow-md overflow-hidden">
-
-                    <div @click="value = ''; label = 'Semua Cabang'; open = false; $refs.branchInput.value = ''; document.getElementById('filterForm').submit();"
-                        class="px-3 py-2 text-sm cursor-pointer flex justify-between items-center hover:bg-gray-100">
-                        <span>Semua Cabang</span>
-                        <svg x-show="value === ''" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                            stroke="#10AF13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                            <path d="M5 12l5 5l10 -10" />
-                        </svg>
-                    </div>
-
-                    @foreach($branches as $branch)
-                    <div @click="value = '{{ $branch->id }}'; label = '{{ $branch->name }}'; open = false; $refs.branchInput.value = value; document.getElementById('filterForm').submit();"
-                        class="px-3 py-2 text-sm cursor-pointer flex justify-between items-center hover:bg-gray-100">
-                        <span>{{ $branch->name }}</span>
-                        <svg x-show="value === '{{ $branch->id }}'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                            stroke="#10AF13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                            <path d="M5 12l5 5l10 -10" />
-                        </svg>
-                    </div>
-                    @endforeach
-                </div>
-
-                <input type="hidden" name="branch_id" x-ref="branchInput" :value="value">
-            </div>
-        </div>
-    </form>
+                            return [
+                                'value' => $date->format('Y-m'),
+                                'label' => $date->format('F Y')
+                            ];
+                        })->toArray()
+                    )
+                ],
+                [
+                    'name' => 'branch_id',
+                    'placeholder' => 'Semua Cabang',
+                    'options' => array_merge(
+                        [['value' => '', 'label' => 'Semua Cabang']],
+                        $branches->map(fn($b) => ['value' => $b->id, 'label' => $b->name])->toArray()
+                    )
+                ]
+            ]"
+        />
+    </div>
 
     <!-- Tabs -->
     <div x-data="{ tab: 'laporan-bulanan' }" x-cloak>

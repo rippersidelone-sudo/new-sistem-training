@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -16,9 +17,8 @@ class ReportController extends Controller
         $branches = Branch::orderBy('name')->get();
         
         // Get filter values
-        $selectedMonth = $request->input('month');
+        $selectedMonth  = $request->input('month');
         $selectedBranch = $request->input('branch_id');
-
         // Monthly Trend Data (Last 6 months)
         $monthlyTrend = $this->getMonthlyTrend($selectedMonth, $selectedBranch);
 
@@ -65,6 +65,37 @@ class ReportController extends Controller
         // Top Performing Batches
         $topBatches = $this->getTopPerformingBatches($selectedMonth, $selectedBranch);
 
+        // Build filter options - HANYA MONTH & BRANCH (untuk export)
+        $filterOptions = [
+            [
+                'name' => 'month',
+                'placeholder' => 'Semua Bulan',
+                'options' => collect([
+                    ['value' => '', 'label' => 'Semua Bulan']
+                ])->merge(
+                    collect(range(0, 11))->map(function($i) {
+                        $date = now()->subMonths($i);
+                        return [
+                            'value' => $date->format('Y-m'),
+                            'label' => $date->format('F Y')
+                        ];
+                    })
+                )
+            ],
+            [
+                'name' => 'branch_id',
+                'placeholder' => 'Semua Cabang',
+                'options' => collect([
+                    ['value' => '', 'label' => 'Semua Cabang']
+                ])->merge(
+                    $branches->map(fn($branch) => [
+                        'value' => (string) $branch->id,
+                        'label' => $branch->name
+                    ])
+                )
+            ]
+        ];
+
         return view('admin.global-report', compact(
             'branches',
             'monthlyTrend',
@@ -73,7 +104,8 @@ class ReportController extends Controller
             'passedCount',
             'passRate',
             'branchPerformance',
-            'topBatches'
+            'topBatches',
+            'filterOptions'          // <-- ditambahkan ke compact
         ));
     }
 

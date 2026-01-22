@@ -40,9 +40,20 @@ class CategoryController extends Controller
             }
         }
 
+        // Sort filter
+        $sort = $request->input('sort', 'latest');
+        if ($sort === 'latest') {
+            $query->orderBy('created_at', 'desc');
+        } elseif ($sort === 'oldest') {
+            $query->orderBy('created_at', 'asc');
+        } elseif ($sort === 'name_asc') {
+            $query->orderBy('name', 'asc');
+        } elseif ($sort === 'name_desc') {
+            $query->orderBy('name', 'desc');
+        }
+
         // Get paginated results
-        $categories = $query->orderBy('created_at', 'desc')
-            ->paginate(12)
+        $categories = $query->paginate(12)
             ->withQueryString();
 
         // Statistics for cards
@@ -106,24 +117,6 @@ class CategoryController extends Controller
             DB::rollBack();
             return back()->withErrors(['error' => 'Terjadi kesalahan saat menyimpan kategori.'])->withInput();
         }
-    }
-
-    /**
-     * Display the specified category
-     */
-    public function show(Category $category)
-    {
-        $category->load([
-            'prerequisites',
-            'dependents',
-            'batches' => function($query) {
-                $query->withCount('batchParticipants')
-                      ->orderBy('start_date', 'desc')
-                      ->limit(10);
-            }
-        ]);
-
-        // Jika ada file khusus detail kategori, ganti sesuai file. Jika tidak, bisa abaikan atau buat file baru jika dibutuhkan.
     }
 
     /**
@@ -192,34 +185,42 @@ class CategoryController extends Controller
         }
 
         $categoryName = $category->name;
-        $category->delete();
+        
+        DB::beginTransaction();
+        try {
+            // Remove all prerequisite relationships
+            $category->prerequisites()->detach();
+            
+            // Delete the category
+            $category->delete();
+            
+            DB::commit();
 
-        return redirect()->route('coordinator.categories.index')
-            ->with('success', 'Kategori "' . $categoryName . '" berhasil dihapus!');
+            return redirect()->route('coordinator.categories.index')
+                ->with('success', 'Kategori "' . $categoryName . '" berhasil dihapus!');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors([
+                'error' => 'Terjadi kesalahan saat menghapus kategori.'
+            ]);
+        }
     }
 
     /**
      * Check if adding prerequisite would create circular dependency
-     * 
-     * @param int $categoryId - The category we're adding prerequisite to
-     * @param int $prerequisiteId - The prerequisite we want to add
-     * @return bool
      */
     private function wouldCreateCircularDependency(int $categoryId, int $prerequisiteId): bool
     {
-        // If prerequisite is the category itself
         if ($categoryId === $prerequisiteId) {
             return true;
         }
 
-        // Get all prerequisites of the prerequisite (recursive check)
         $prereqCategory = Category::find($prerequisiteId);
         if (!$prereqCategory) {
             return false;
         }
 
-        // Check if current category is already a prerequisite of the new prerequisite
-        // This would create a circular dependency: A requires B, B requires A
         $allPrerequisitesOfPrereq = $this->getAllPrerequisites($prereqCategory);
         
         return in_array($categoryId, $allPrerequisitesOfPrereq);
@@ -227,14 +228,9 @@ class CategoryController extends Controller
 
     /**
      * Get all prerequisites recursively
-     * 
-     * @param Category $category
-     * @param array $visited - Track visited categories to prevent infinite loop
-     * @return array
      */
     private function getAllPrerequisites(Category $category, array $visited = []): array
     {
-        // Prevent infinite loop
         if (in_array($category->id, $visited)) {
             return [];
         }

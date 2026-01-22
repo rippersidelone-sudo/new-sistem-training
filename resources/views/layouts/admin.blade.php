@@ -154,4 +154,25 @@
         </svg>
     </button>
 </div>
+
+{{-- SCRIPT UNTUK RESTORE SCROLL POSITION --}}
+@push('scripts')
+<script>
+// Restore scroll position setelah page load (untuk filter)
+document.addEventListener('DOMContentLoaded', function() {
+    const scrollPos = sessionStorage.getItem('filterScrollPosition');
+    if (scrollPos) {
+        // Tunggu sebentar agar halaman fully rendered
+        setTimeout(() => {
+            window.scrollTo({
+                top: parseInt(scrollPos),
+                behavior: 'instant' // Langsung tanpa animasi
+            });
+            // Hapus setelah digunakan
+            sessionStorage.removeItem('filterScrollPosition');
+        }, 100);
+    }
+});
+</script>
+@endpush
 @endsection

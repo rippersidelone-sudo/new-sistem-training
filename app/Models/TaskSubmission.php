@@ -11,12 +11,15 @@ class TaskSubmission extends Model
     use HasFactory;
 
     protected $fillable = [
-        'task_id',
-        'batch_id',
-        'user_id',
-        'file_path',
-        'status',
-    ];
+    'task_id',
+    'user_id',
+    'file_path',
+    'notes',           
+    'status',
+    'feedback',
+    'reviewed_by',
+    'reviewed_at',
+];
 
     /**
      * Get the task
