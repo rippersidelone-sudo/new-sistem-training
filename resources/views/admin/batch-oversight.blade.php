@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('content')
     <div class="px-2">
@@ -6,130 +6,32 @@
         <p class="text-[#737373] mt-2 font-medium">Monitor dan kelola semua batch pelatihan</p>
     </div>
 
-    <div class="grid grid-cols-1 border lg:grid-cols-3 gap-4 px-5 bg-white py-6 rounded-2xl mt-8 mx-2">
-        <!-- Search -->
-        <div class="flex items-center bg-[#F1F1F1] rounded-lg px-3">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="text-[#737373]">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-                <path d="M21 21l-6 -6" />
-            </svg>
-            <input type="text" name="search"
-                class="w-full border-0 focus:ring-0 text-sm bg-[#F1F1F1] placeholder-[#737373]"
-                placeholder="Cari batch pelatihan..." />
-        </div>
-
-        <!-- Dropdown Status -->
-        <div x-data="{ open: false, value: '', label: 'Semua Status' }" class="relative w-full">
-            <button @click="open = !open"
-                :class="open
-                    ?
-                    'border-[#10AF13] ring-1 ring-[#10AF13]' :
-                    'border-gray-300'"
-                class="w-full px-3 py-2 rounded-lg border cursor-pointer
-                flex justify-between items-center text-sm bg-white transition">
-                <span x-text="label"></span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-down">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                    <path d="M6 9l6 6l6 -6" />
-                </svg>
-            </button>
-
-            <!-- Dropdown Content -->
-            <div x-show="open" @click.outside="open = false" x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
-                x-transition:leave-end="opacity-0 scale-95"
-                class="absolute z-20 mt-2 w-full bg-white border rounded-lg shadow-md overflow-hidden">
-
-                <!-- Item -->
-                <template
-                    x-for="item in [
-                        { value: '', label: 'Semua Status' },
-                        { value: 'scheduled', label: 'Scheduled' },
-                        { value: 'ongoing', label: 'Ongoing' },
-                        { value: 'completed', label: 'Completed' }
-                    ]"
-                    :key="item.value">
-
-                    <div @click="value = item.value; label = item.label; open = false"
-                        class="px-3 py-2 text-sm cursor-pointer flex justify-between items-center hover:bg-gray-100">
-
-                        <span x-text="item.label"></span>
-
-                        <!-- Check Icon -->
-                        <svg x-show="value === item.value" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                            stroke="#10AF13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                            class="icon icon-tabler icons-tabler-outline icon-tabler-check">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                            <path d="M5 12l5 5l10 -10" />
-                        </svg>
-                    </div>
-                </template>
-            </div>
-
-            <!-- Hidden input untuk backend -->
-            <input type="hidden" name="status" :value="value">
-        </div>
-
-        <!-- Dropdown Cabang -->
-        <div x-data="{ open: false, value: '', label: 'Semua Cabang' }" class="relative w-full">
-            <button @click="open = !open"
-                :class="open
-                    ?
-                    'border-[#10AF13] ring-1 ring-[#10AF13]' :
-                    'border-gray-300'"
-                class="w-full px-3 py-2 rounded-lg border cursor-pointer
-                flex justify-between items-center text-sm bg-white transition">
-                <span x-text="label"></span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-down">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                    <path d="M6 9l6 6l6 -6" />
-                </svg>
-            </button>
-
-            <!-- Dropdown Content -->
-            <div x-show="open" @click.outside="open = false" x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
-                x-transition:leave-end="opacity-0 scale-95"
-                class="absolute z-20 mt-2 w-full bg-white border rounded-lg shadow-md overflow-hidden">
-
-                <!-- Item -->
-                <template
-                    x-for="item in [
-                        { value: '', label: 'Semua Cabang' },
-                        { value: 'jakarta-pusat', label: 'Jakarta Pusat' },
-                        { value: 'bandung', label: 'Bandung' },
-                        { value: 'surabaya', label: 'Surabaya' }
-                    ]"
-                    :key="item.value">
-
-                    <div @click="value = item.value; label = item.label; open = false"
-                        class="px-3 py-2 text-sm cursor-pointer flex justify-between items-center hover:bg-gray-100">
-
-                        <span x-text="item.label"></span>
-
-                        <!-- Check Icon -->
-                        <svg x-show="value === item.value" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                            stroke="#10AF13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                            class="icon icon-tabler icons-tabler-outline icon-tabler-check">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                            <path d="M5 12l5 5l10 -10" />
-                        </svg>
-                    </div>
-                </template>
-            </div>
-
-            <!-- Hidden input untuk backend -->
-            <input type="hidden" name="cabang" :value="value">
-        </div>
+    {{-- Filter Bar Component --}}
+    <div class="mt-8 mx-2">
+        <x-filter-bar
+            :action="route('admin.batch-oversight.index')"
+            searchPlaceholder="Cari batch pelatihan..."
+            :filters="[
+                [
+                    'name' => 'status',
+                    'placeholder' => 'Semua Status',
+                    'options' => [
+                        ['value' => '', 'label' => 'Semua Status'],
+                        ['value' => 'Scheduled', 'label' => 'Scheduled'],
+                        ['value' => 'Ongoing', 'label' => 'Ongoing'],
+                        ['value' => 'Completed', 'label' => 'Completed'],
+                    ]
+                ],
+                [
+                    'name' => 'branch_id',
+                    'placeholder' => 'Semua Cabang',
+                    'options' => array_merge(
+                        [['value' => '', 'label' => 'Semua Cabang']],
+                        $branches->map(fn($b) => ['value' => $b->id, 'label' => $b->name])->toArray()
+                    )
+                ]
+            ]"
+        />
     </div>
 
     <div class="grid gap-6 mt-8 px-2">
@@ -138,8 +40,8 @@
                 <h2 class="text-lg font-semibold">
                     Daftar Batch Pelatihan
                 </h2>
-                <div
-                    class="flex items-center bg-white border rounded-lg px-3 gap-3 py-1 w-fit cursor-pointer hover:bg-gray-50 transitionn font-semibold">
+                <a href="{{ route('admin.batch-oversight.export', request()->query()) }}"
+                    class="flex items-center bg-white border rounded-lg px-3 gap-3 py-1 w-fit cursor-pointer hover:bg-gray-50 transition font-semibold">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="icon icon-tabler icons-tabler-outline icon-tabler-download">
@@ -149,115 +51,138 @@
                         <path d="M12 4l0 12" />
                     </svg>
                     <span>Export CSV</span>
-                </div>
+                </a>
             </div>
-            <div class="overflow-x-auto" x-data="{ openDetail: false }">
-                <table class="min-w-full border border-gray-200 rounded-xl overflow-hidden">
-                    <thead class="bg-[#F1F1F1]">
-                        <tr class="text-left text-sm font-semibold text-gray-700">
-                            <th class="px-4 py-3">Kode</th>
-                            <th class="px-4 py-3">Judul Batch</th>
-                            <th class="px-4 py-3">Trainer</th>
-                            <th class="px-4 py-3">Tanggal</th>
-                            <th class="px-4 py-3 text-center">Peserta</th>
-                            <th class="px-4 py-3 text-center">Status</th>
-                            <th class="px-4 py-3 text-center">Aksi</th>
-                        </tr>
-                    </thead>
 
-                    <tbody class="divide-y text-sm">
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 font-medium">TRN-2025-002</td>
-                            <td class="px-4 py-3">Python Coder Batch 3</td>
-                            <td class="px-4 py-3">Ahmad</td>
-                            <td class="px-4 py-3">15 Nov 2025</td>
-                            <td class="px-4 py-3 text-center">
-                                8/<span class="text-gray-700">Lulus: 0</span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-[#0059FF]">
-                                    SCHEDULED
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <div class="flex justify-center gap-2">
-                                    <button @click="openDetail = true">
-                                        <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
-                                            viewBox="0 0 20 20" fill="currentColor">
-                                            <path
-                                                d="M10 3C5 3 1.73 7.11 1.07 10c.66 2.89 4 7 8.93 7s8.27-4.11 8.93-7C18.27 7.11 15 3 10 3zM10 15a5 5 0 110-10 5 5 0 010 10z" />
-                                            <path d="M10 7a3 3 0 100 6 3 3 0 000-6z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 font-medium">TRN-2025-001</td>
-                            <td class="px-4 py-3">Python Game Developer Batch 1</td>
-                            <td class="px-4 py-3">Ahmad</td>
-                            <td class="px-4 py-3">10 Nov 2025</td>
-                            <td class="px-4 py-3 text-center">
-                                12/<span class="text-gray-700">Lulus: 0</span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-[#10AF13]">
-                                    ONGOING
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <div class="flex justify-center gap-2">
-                                    <button>
-                                        <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
-                                            viewBox="0 0 20 20" fill="currentColor">
-                                            <path
-                                                d="M10 3C5 3 1.73 7.11 1.07 10c.66 2.89 4 7 8.93 7s8.27-4.11 8.93-7C18.27 7.11 15 3 10 3zM10 15a5 5 0 110-10 5 5 0 010 10z" />
-                                            <path d="M10 7a3 3 0 100 6 3 3 0 000-6z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 font-medium">TRN-2025-003</td>
-                            <td class="px-4 py-3">Web Development Fundamentals</td>
-                            <td class="px-4 py-3">Ahmad</td>
-                            <td class="px-4 py-3">10 Okt 2025</td>
-                            <td class="px-4 py-3 text-center">
-                                18/<span class="text-gray-700">Lulus: 1</span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="px-3 py-1 text-xs font-medium rounded-full bg-orange-100 text-[#FF4D00]">
-                                    COMPLETED
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <div class="flex justify-center gap-2">
-                                    <button>
-                                        <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
-                                            viewBox="0 0 20 20" fill="currentColor">
-                                            <path
-                                                d="M10 3C5 3 1.73 7.11 1.07 10c.66 2.89 4 7 8.93 7s8.27-4.11 8.93-7C18.27 7.11 15 3 10 3zM10 15a5 5 0 110-10 5 5 0 010 10z" />
-                                            <path d="M10 7a3 3 0 100 6 3 3 0 000-6z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- Bagian tabel dan modal -->
+            <div class="overflow-x-auto" x-data="{
+                openDetail: false,
+                selectedBatch: null,
+               
+                fetchBatchDetail(batchId) {
+                    this.selectedBatch = null;
+                   
+                    fetch(`/admin/batch-oversight/${batchId}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                this.selectedBatch = {
+                                    code: this.formatBatchCode(data.batch.id, new Date(data.batch.created_at).getFullYear()),
+                                    title: data.batch.title,
+                                    category: data.batch.category,
+                                    trainer: data.batch.trainer,
+                                    start_date: new Date(data.batch.start_date).toLocaleDateString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    }),
+                                    end_date: new Date(data.batch.end_date).toLocaleDateString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    }),
+                                    participants_count: data.batch.participants_count || 0,
+                                    passed_count: data.batch.passed_count || 0,
+                                    status: data.batch.status,
+                                    zoom_link: data.batch.zoom_link
+                                };
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Gagal memuat detail batch');
+                            this.openDetail = false;
+                        });
+                },
+               
+                formatBatchCode(id, year) {
+                    return `TRN-${year}-${String(id).padStart(3, '0')}`;
+                }
+            }">
+                @if($batches->isEmpty())
+                    <div class="text-center py-12 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.5" class="mx-auto mb-4 text-gray-400">
+                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <p class="font-medium">Tidak ada data batch pelatihan</p>
+                        <p class="text-sm mt-1">Batch akan muncul di sini setelah Coordinator membuat batch baru</p>
+                    </div>
+                @else
+                    <table class="min-w-full border border-gray-200 rounded-xl overflow-hidden">
+                        <thead class="bg-[#F1F1F1]">
+                            <tr class="text-left text-sm font-semibold text-gray-700">
+                                <th class="px-4 py-3">Kode</th>
+                                <th class="px-4 py-3">Judul Batch</th>
+                                <th class="px-4 py-3">Trainer</th>
+                                <th class="px-4 py-3">Tanggal</th>
+                                <th class="px-4 py-3 text-center">Peserta</th>
+                                <th class="px-4 py-3 text-center">Status</th>
+                                <th class="px-4 py-3 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y text-sm">
+                            @foreach($batches as $batch)
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 font-medium">{{ formatBatchCode($batch->id, $batch->created_at->year) }}</td>
+                                <td class="px-4 py-3">{{ $batch->title }}</td>
+                                <td class="px-4 py-3">{{ $batch->trainer->name ?? '-' }}</td>
+                                <td class="px-4 py-3">{{ $batch->start_date->format('d M Y') }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    {{ $batch->participants_count }}/<span class="text-gray-700">Lulus: {{ $batch->passed_count ?? 0 }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @php
+                                        $statusConfig = [
+                                            'Scheduled' => ['bg' => 'bg-blue-100', 'text' => 'text-[#0059FF]'],
+                                            'Ongoing' => ['bg' => 'bg-green-100', 'text' => 'text-[#10AF13]'],
+                                            'Completed' => ['bg' => 'bg-orange-100', 'text' => 'text-[#FF4D00]'],
+                                        ];
+                                        $config = $statusConfig[$batch->status] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-700'];
+                                    @endphp
+                                    <span class="px-3 py-1 text-xs font-medium rounded-full {{ $config['bg'] }} {{ $config['text'] }} uppercase">
+                                        {{ $batch->status }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex justify-center gap-2">
+                                        <button @click="openDetail = true; fetchBatchDetail({{ $batch->id }})"
+                                            class="hover:text-[#10AF13] transition">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                                viewBox="0 0 20 20" fill="currentColor">
+                                                <path
+                                                    d="M10 3C5 3 1.73 7.11 1.07 10c.66 2.89 4 7 8.93 7s8.27-4.11 8.93-7C18.27 7.11 15 3 10 3zM10 15a5 5 0 110-10 5 5 0 010 10z" />
+                                                <path d="M10 7a3 3 0 100 6 3 3 0 000-6z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
 
                 <!-- Modal Detail -->
                 <div x-show="openDetail" x-cloak x-transition id="detailBatch"
                     class="fixed inset-0 bg-black/40 z-50 items-center flex justify-center">
-                    <div @click.outside="openDetail = false" class="bg-white max-w-xl rounded-2xl shadow-lg p-8 relative">
+                    <div @click.outside="openDetail = false" class="bg-white max-w-2xl w-full mx-4 rounded-2xl shadow-lg p-8 relative max-h-[90vh] overflow-y-auto">
 
                         <!-- Close Button -->
                         <button @click="openDetail = false"
                             class="absolute top-6 right-6 text-[#737373] hover:text-black text-xl">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x">
+                                stroke-linejoin="round">
                                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                 <path d="M18 6l-12 12" />
                                 <path d="M6 6l12 12" />
@@ -268,34 +193,90 @@
                         <h2 class="text-xl font-semibold">Detail Batch Pelatihan</h2>
                         <p class="text-[#737373] mb-6">Informasi lengkap batch pelatihan</p>
 
+                        <!-- Loading State -->
+                        <div x-show="!selectedBatch" class="text-center py-8">
+                            <svg class="animate-spin h-8 w-8 mx-auto text-[#10AF13]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="text-gray-500 mt-2">Memuat data...</p>
+                        </div>
+
                         <!-- Content -->
-                        <div class="bg-gray-50 rounded-xl p-6 grid grid-cols-2 gap-y-6 gap-x-10">
-                            <div>
-                                <p class="text-gray-700 text-md font-medium">Kode</p>
-                                <p>TRN-2025-001</p>
+                        <div x-show="selectedBatch" class="space-y-6">
+                            <!-- Basic Info -->
+                            <div class="bg-gray-50 rounded-xl p-6 grid grid-cols-2 gap-y-6 gap-x-10">
+                                <div>
+                                    <p class="text-gray-700 text-sm font-medium mb-1">Kode Batch</p>
+                                    <p class="font-semibold" x-text="selectedBatch?.code || '-'"></p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-700 text-sm font-medium mb-1">Status</p>
+                                    <span
+                                        class="inline-block px-3 py-1 uppercase text-xs font-medium rounded-full"
+                                        :class="{
+                                            'bg-blue-100 text-[#0059FF]': selectedBatch?.status === 'Scheduled',
+                                            'bg-green-100 text-[#10AF13]': selectedBatch?.status === 'Ongoing',
+                                            'bg-orange-100 text-[#FF4D00]': selectedBatch?.status === 'Completed'
+                                        }"
+                                        x-text="selectedBatch?.status || '-'">
+                                    </span>
+                                </div>
+                                <div class="col-span-2">
+                                    <p class="text-gray-700 text-sm font-medium mb-1">Judul Batch</p>
+                                    <p class="font-semibold" x-text="selectedBatch?.title || '-'"></p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-700 text-sm font-medium mb-1">Kategori</p>
+                                    <p x-text="selectedBatch?.category?.name || '-'"></p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-700 text-sm font-medium mb-1">Trainer</p>
+                                    <p x-text="selectedBatch?.trainer?.name || '-'"></p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-700 text-sm font-medium mb-1">Tanggal Mulai</p>
+                                    <p x-text="selectedBatch?.start_date || '-'"></p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-700 text-sm font-medium mb-1">Tanggal Selesai</p>
+                                    <p x-text="selectedBatch?.end_date || '-'"></p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-gray-700 text-md font-medium">Judul Batch</p>
-                                <p>Python Coder Batch 3</p>
+
+                            <!-- Statistics -->
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                                    <p class="text-sm text-gray-600 mb-1">Total Peserta</p>
+                                    <p class="text-2xl font-bold text-[#0059FF]" x-text="selectedBatch?.participants_count || 0"></p>
+                                </div>
+                                <div class="bg-green-50 rounded-lg p-4 text-center">
+                                    <p class="text-sm text-gray-600 mb-1">Peserta Lulus</p>
+                                    <p class="text-2xl font-bold text-[#10AF13]" x-text="selectedBatch?.passed_count || 0"></p>
+                                </div>
+                                <div class="bg-orange-50 rounded-lg p-4 text-center">
+                                    <p class="text-sm text-gray-600 mb-1">Tingkat Kelulusan</p>
+                                    <p class="text-2xl font-bold text-[#FF4D00]">
+                                        <span x-text="selectedBatch?.participants_count > 0 ? 
+                                            Math.round((selectedBatch?.passed_count / selectedBatch?.participants_count) * 100) : 0"></span>%
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-gray-700 text-md font-medium">Trainer</p>
-                                <p>Ahmad</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-700 text-md font-medium">Tanggal</p>
-                                <p>15 Nov 2025</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-700 text-md font-medium">Peserta</p>
-                                <p>8/<span class="text-gray-700">Lulus: 0</span></p>
-                            </div>
-                            <div>
-                                <p class="text-gray-700 text-md font-medium">Status</p>
-                                <span
-                                    class="inline-block px-2 py-1 uppercase text-xs font-medium rounded-full bg-blue-100 text-[#0059FF]">
-                                    SCHEDULED
-                                </span>
+
+                            <!-- Zoom Link -->
+                            <div class="bg-gray-50 rounded-xl p-4" x-show="selectedBatch?.zoom_link">
+                                <p class="text-gray-700 text-sm font-medium mb-2">Zoom Link</p>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" 
+                                        :value="selectedBatch?.zoom_link || 'Tidak ada link'"
+                                        readonly
+                                        class="flex-1 px-3 py-2 bg-white border rounded-lg text-sm">
+                                    <button 
+                                        @click="navigator.clipboard.writeText(selectedBatch?.zoom_link); alert('Link berhasil dicopy!')"
+                                        class="px-3 py-2 bg-[#10AF13] text-white rounded-lg text-sm hover:bg-[#0e8e0f] transition">
+                                        Copy
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -303,6 +284,4 @@
             </div>
         </div>
     </div>
-
-    <script src="{{ asset('js/admin.js') }}"></script>
 @endsection

@@ -1,3 +1,4 @@
+<!-- resources/views/profile/partials/update-profile-information-form.blade.php -->
 <section>
     <header>
         <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -9,42 +10,40 @@
         </p>
     </header>
 
-    <form id="send-verification" method="post" action="{{ route('verification.send') }}">
-        @csrf
-    </form>
-
     <form method="post" action="{{ route('profile.update') }}" class="mt-6 space-y-6">
         @csrf
         @method('patch')
 
+        @php
+            $currentUser = $user ?? auth()->user();
+        @endphp
+
         <div>
             <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full focus:ring-[#10AF13] focus:border-[#10AF13]" :value="old('name', Auth::user()->name)" required autofocus autocomplete="name" />
+            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $currentUser->name)" required autofocus autocomplete="name" />
             <x-input-error class="mt-2" :messages="$errors->get('name')" />
         </div>
 
         <div>
             <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full focus:ring-[#10AF13] focus:border-[#10AF13]" :value="old('email', Auth::user()->email)" required autocomplete="username" />
+            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $currentUser->email)" required autocomplete="username" />
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
+        </div>
 
-            @if (Auth::user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
-                <div>
-                    <p class="text-sm mt-2 text-gray-800 dark:text-gray-200">
-                        {{ __('Your email address is unverified.') }}
+        <!-- Additional fields for Branch Coordinator and Participant -->
+        @if($currentUser->role && in_array($currentUser->role->name, ['Branch Coordinator', 'Participant']))
+            <div>
+                <x-input-label for="branch" :value="__('Branch')" />
+                <x-text-input id="branch" name="branch" type="text" class="mt-1 block w-full bg-gray-100" :value="$currentUser->branch ? $currentUser->branch->name : '-'" disabled />
+                <p class="mt-1 text-xs text-gray-500">{{ __('Branch information cannot be changed') }}</p>
+            </div>
+        @endif
 
-                        <button form="send-verification" class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#10AF13] dark:focus:ring-offset-gray-800">
-                            {{ __('Click here to re-send the verification email.') }}
-                        </button>
-                    </p>
-
-                    @if (session('status') === 'verification-link-sent')
-                        <p class="mt-2 font-medium text-sm text-green-600 dark:text-green-400">
-                            {{ __('A new verification link has been sent to your email address.') }}
-                        </p>
-                    @endif
-                </div>
-            @endif
+        <!-- Role (for all users) -->
+        <div>
+            <x-input-label for="role" :value="__('Role')" />
+            <x-text-input id="role" name="role" type="text" class="mt-1 block w-full bg-gray-100" :value="$currentUser->role ? $currentUser->role->name : '-'" disabled />
+            <p class="mt-1 text-xs text-gray-500">{{ __('Role cannot be changed. Contact admin if needed.') }}</p>
         </div>
 
         <div class="flex items-center gap-4">

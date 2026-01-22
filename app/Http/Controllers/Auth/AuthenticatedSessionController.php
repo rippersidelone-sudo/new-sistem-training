@@ -66,7 +66,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         if (RoleHelper::isBranchCoordinator($user)) {
-            return route('branch.dashboard');
+            return route('branch_pic.dashboard');
         }
 
         if (RoleHelper::isParticipant($user)) {

@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Models\Branch;
 use App\Models\Certificate;
 use App\Models\BatchParticipant;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -18,20 +17,22 @@ class DashboardController extends Controller
         // Statistics Cards
         $totalBatches = Batch::count();
         $activeBatches = Batch::where('status', 'Ongoing')->count();
+        
+        // Total participants (users with Participant role)
         $totalParticipants = User::whereHas('role', function($q) {
             $q->where('name', 'Participant');
         })->count();
         
-        // Count participants who passed (has attendance AND feedback)
+        // Passed participants (approved batch participants)
         $passedParticipants = BatchParticipant::where('status', 'Approved')
-            ->whereHas('user.attendances', function($q) {
-                $q->where('status', 'Approved');
-            })
-            ->whereHas('user.feedback')
             ->distinct('user_id')
             ->count('user_id');
         
-        $activeBranches = Branch::whereHas('users')->count();
+        // Active branches (branches that have users)
+        // Jika batches punya branch_id, gunakan: Branch::has('batches')->count()
+        $activeBranches = Branch::has('users')->count();
+        
+        // Total certificates issued
         $totalCertificates = Certificate::count();
 
         // Monthly Trend Data (Last 5 months)
@@ -49,18 +50,22 @@ class DashboardController extends Controller
             $q->whereHas('role', function($query) {
                 $query->where('name', 'Participant');
             });
-        }])->get()->map(function($branch) {
+        }])
+        ->orderBy('name')
+        ->get()
+        ->map(function($branch) {
             return [
                 'name' => $branch->name,
+                'code' => $this->getBranchCode($branch->name),
                 'count' => $branch->users_count
             ];
         });
 
-        // Recent Batches (Latest 3)
+        // Recent Batches (Latest 5)
         $recentBatches = Batch::with(['trainer', 'category'])
-            ->withCount('participants')
+            ->withCount('batchParticipants')
             ->orderBy('created_at', 'desc')
-            ->take(3)
+            ->take(5)
             ->get();
 
         return view('admin.master-dashboard', compact(
@@ -88,7 +93,10 @@ class DashboardController extends Controller
 
         for ($i = 4; $i >= 0; $i--) {
             $date = now()->subMonths($i);
-            $months[] = $date->format('M');
+            
+            // Format bulan Indonesia
+            $monthName = $date->locale('id')->translatedFormat('M');
+            $months[] = $monthName;
 
             // Count batches created in this month
             $batchCount = Batch::whereYear('created_at', $date->year)
@@ -99,6 +107,7 @@ class DashboardController extends Controller
             // Count participants registered in this month
             $participantCount = BatchParticipant::whereYear('created_at', $date->year)
                 ->whereMonth('created_at', $date->month)
+                ->where('status', 'Approved')
                 ->distinct('user_id')
                 ->count('user_id');
             $participantData[] = $participantCount;
@@ -109,5 +118,30 @@ class DashboardController extends Controller
             'batches' => $batchData,
             'participants' => $participantData,
         ];
+    }
+
+    /**
+     * Get branch code from name (first 3 uppercase letters)
+     * Jakarta Pusat -> JKT-PST
+     * Bandung -> BDG
+     * Surabaya -> SBY
+     */
+    private function getBranchCode($name)
+    {
+        // Remove common words
+        $name = str_replace(['Cabang', 'Branch'], '', $name);
+        $name = trim($name);
+        
+        $words = explode(' ', $name);
+        
+        if (count($words) > 1) {
+            // Multi-word: take first 3 letters of each word
+            return strtoupper(
+                substr($words[0], 0, 3) . '-' . substr($words[1], 0, 3)
+            );
+        }
+        
+        // Single word: take first 3 letters
+        return strtoupper(substr($name, 0, 3));
     }
 }

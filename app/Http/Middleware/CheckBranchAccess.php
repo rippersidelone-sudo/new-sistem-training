@@ -28,12 +28,35 @@ class CheckBranchAccess
             return $next($request);
         }
 
-        // Branch Coordinator can only access their own branch
+        // Branch Coordinator must have a branch assigned
         if ($userRole === 'Branch Coordinator') {
+            // Cek apakah user punya branch_id
+            if (!$user->branch_id) {
+                abort(403, 'Anda belum terdaftar di cabang manapun. Hubungi administrator.');
+            }
+
+            // Jika ada parameter branch_id di route atau request
             $branchId = $request->route('branch_id') ?? $request->input('branch_id');
             
             if ($branchId && $user->branch_id != $branchId) {
                 abort(403, 'Anda hanya dapat mengakses data cabang Anda sendiri.');
+            }
+
+            // Validasi tambahan untuk akses user/participant
+            // Pastikan user/participant yang diakses adalah dari cabang yang sama
+            if ($request->route('user')) {
+                $routeUser = $request->route('user');
+                if ($routeUser->branch_id !== $user->branch_id) {
+                    abort(403, 'Anda hanya dapat mengakses peserta dari cabang Anda sendiri.');
+                }
+            }
+
+            // Validasi untuk BatchParticipant
+            if ($request->route('participant')) {
+                $participant = $request->route('participant');
+                if ($participant->user->branch_id !== $user->branch_id) {
+                    abort(403, 'Anda hanya dapat mengakses data peserta dari cabang Anda sendiri.');
+                }
             }
         }
 

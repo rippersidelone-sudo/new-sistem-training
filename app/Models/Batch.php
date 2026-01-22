@@ -76,6 +76,18 @@ class Batch extends Model
     {
         return $this->hasMany(Certificate::class);
     }
+    public function materials(): HasMany
+    {
+        return $this->hasMany(BatchMaterial::class);
+    }
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['title', 'status', 'trainer_id', 'start_date', 'end_date'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "{$eventName} batch");
+    }
 }
 
 

@@ -1,7 +1,5 @@
 <?php
 
-// RoleSeeder.php
-
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -16,14 +14,14 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'HQ Admin',
                 'description' => 'Pengelola pusat dan pengendali seluruh sistem',
-                'access_token' => 'full_access',
+                'access_token' => 'admin_access',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
                 'name' => 'Training Coordinator',
                 'description' => 'Pengatur jadwal, batch, dan peserta pelatihan',
-                'access_token' => 'admin_access',
+                'access_token' => 'coordinator_access',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
@@ -36,15 +34,15 @@ class RoleSeeder extends Seeder
             ],
             [
                 'name' => 'Branch Coordinator',
-                'description' => 'Penanggung jawab peserta di tingkat cabang',
+                'description' => 'PIC peserta tingkat cabang',
                 'access_token' => 'branch_access',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
                 'name' => 'Participant',
-                'description' => 'Peserta yang mengikuti pelatihan',
-                'access_token' => 'user_access',
+                'description' => 'Peserta Pelatihan',
+                'access_token' => null, // ← TAMBAHKAN INI
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],

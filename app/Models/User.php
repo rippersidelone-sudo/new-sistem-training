@@ -102,5 +102,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Certificate::class, 'issued_by');
     }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'role_id', 'branch_id'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "{$eventName} user");
+    }
 }
 
