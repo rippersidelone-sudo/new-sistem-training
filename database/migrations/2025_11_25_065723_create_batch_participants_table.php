@@ -1,5 +1,5 @@
 <?php
-// 2024_01_01_000007_create_batch_participants_table.php
+
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

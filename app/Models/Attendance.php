@@ -1,5 +1,4 @@
 <?php
-// app/Models/Attendance.php
 
 namespace App\Models;
 

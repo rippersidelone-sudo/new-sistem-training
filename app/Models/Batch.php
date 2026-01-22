@@ -1,5 +1,4 @@
 <?php
-// app/Models/Batch.php
 
 namespace App\Models;
 

@@ -1,5 +1,4 @@
 <?php
-// 2024_01_01_000012_create_certificates_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
