@@ -1,72 +1,146 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+{{-- resources/views/layouts/branch-pic.blade.php --}}
+@extends('layouts.app')
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+@section('sidebar')
+<div x-data="{ open: false }" x-cloak>
+    
+    {{-- Mobile Overlay --}}
+    <div x-show="open" 
+         @click="open = false"
+         x-transition
+         class="fixed inset-0 bg-black/50 z-40 lg:hidden">
+    </div>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+    {{-- Sidebar --}}
+    <div :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+         class="sidebar-container w-64 h-screen bg-[#10AF13] fixed top-0 left-0 flex flex-col justify-between p-4 z-50 transition-transform duration-300 lg:z-auto">
+        
+        {{-- USER HEADER --}}
+        <div>
+            <div class="flex items-center space-x-3 mt-4">
+                {{-- Inisial --}}
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg">
+                    {{ Auth::user()->initials ?? strtoupper(substr(Auth::user()->name ?? '', 0, 1)) }}
+                </div>
 
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+                {{-- Nama & Role --}}
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-xl font-bold whitespace-normal text-black">
+                        {{ Auth::user()->name }}
+                    </h1>
+                    <p class="text-sm text-[#E1EFE2] leading-tight whitespace-normal">
+                        {{ Auth::user()->role->description ?? 'Branch Coordinator' }}
+                    </p>
+                </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-        <style>
-            [x-cloak] { 
-                display: none !important; 
-            }
-        </style>
-    </head>
-    <body class="font-sans antialiased">
-        <div class=" flex min-h-screen bg-gray-100 dark:bg-gray-900">
-            @include('layouts.navigation-branch-pic')
+                {{-- Close Mobile --}}
+                <button @click="open = false" class="lg:hidden text-black">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6l-12 12M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
 
-            <!-- Page Content -->
-            <main class="flex-1 p-6 ml-64 min-h-screen">
-                @yield('content')
+            <hr class="border-[#E1EFE2]/40 mt-10 -mx-4">
 
-                @if (session('success'))
-                    <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)" 
-                        class="fixed bottom-6 right-6 z-50">
-                        <div class="flex items-center gap-3 bg-[#10AF13] text-white px-4 py-3 rounded-lg shadow-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" 
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                                class="icon icon-tabler icons-tabler-check-circle">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <circle cx="12" cy="12" r="9" />
-                                <path d="M9 12l2 2l4 -4" />
-                            </svg>
-                            <span class="font-medium">
-                                {{ session('success') }}
-                            </span>
-                        </div>
-                    </div>
-                @endif
+            {{-- MENU LIST --}}
+            <nav class="mt-8 space-y-2">
+                {{-- Dashboard --}}
+                <a href="{{ route('branch_pic.dashboard') }}" 
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
+                   {{ request()->routeIs('branch_pic.dashboard') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
+                        <path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
+                        <path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
+                        <path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
 
-                @if (session('error'))
-                    <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)" 
-                        class="fixed bottom-6 right-6 z-50">
-                        <div class="flex items-center gap-3 bg-[#E81B1B] text-white px-4 py-3 rounded-lg shadow-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" 
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                                class="icon icon-tabler icons-tabler-x-circle">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <circle cx="12" cy="12" r="9" />
-                                <path d="M10 10l4 4m0 -4l-4 4" />
-                            </svg>
-                            <span class="font-medium">
-                                {{ session('error') }}
-                            </span>
-                        </div>
-                    </div>
-                @endif
-            </main>
+                {{-- Participants --}}
+                <a href="{{ route('branch_pic.participants.index') }}" 
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
+                   {{ request()->routeIs('branch_pic.participants*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+                        <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        <path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />
+                    </svg>
+                    <span>Participants</span>
+                </a>
+
+                {{-- Validation --}}
+                <a href="{{ route('branch_pic.validation.index') }}" 
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
+                   {{ request()->routeIs('branch_pic.validation*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+                        <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
+                        <path d="M9 14l2 2l4 -4" />
+                    </svg>
+                    <span>Validation</span>
+                </a>
+
+                {{-- Reports --}}
+                <a href="{{ route('branch_pic.reports.index') }}" 
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
+                   {{ request()->routeIs('branch_pic.reports*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+                        <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
+                        <path d="M9 12h6" />
+                        <path d="M9 16h6" />
+                    </svg>
+                    <span>Reports</span>
+                </a>
+
+                {{-- Settings --}}
+                <a href="{{ route('branch_pic.settings') }}" 
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
+                   {{ request()->routeIs('branch_pic.settings') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
+                        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                    </svg>
+                    <span>Settings</span>
+                </a>
+            </nav>
         </div>
-    </body>
-</html>
+
+        {{-- LOGOUT --}}
+        <div>
+            <hr class="border-[#E1EFE2]/40 mb-4 -mx-4">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                @method('POST')
+
+                <button type="submit" class="w-full flex items-center justify-center space-x-3 bg-white py-2 rounded-lg text-black font-medium hover:bg-gray-100 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" />
+                        <path d="M9 12h12l-3 -3" />
+                        <path d="M18 15l3 -3" />
+                    </svg>
+                    <span>Logout</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {{-- Mobile Menu Button --}}
+    <button @click="open = true" class="fixed bottom-6 right-6 z-30 lg:hidden w-14 h-14 bg-[#10AF13] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#0e8e0f] transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+    </button>
+</div>
+@endsection

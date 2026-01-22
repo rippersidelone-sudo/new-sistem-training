@@ -2,12 +2,12 @@
 
 /**
  * Helper Functions for Badge Colors and Utilities
- * Add this file to composer.json autoload.files section
+ * File: app/helpers.php or bootstrap/helpers.php
  */
 
 if (!function_exists('badgeRole')) {
     /**
-     * Get badge color class based on role name
+     * Get badge color class based on role name (for badges)
      */
     function badgeRole(?string $roleName): string
     {
@@ -22,6 +22,23 @@ if (!function_exists('badgeRole')) {
     }
 }
 
+if (!function_exists('badgeRoleText')) {
+    /**
+     * Get text color class based on role name (for text only)
+     */
+    function badgeRoleText(?string $roleName): string
+    {
+        return match($roleName) {
+            'HQ Admin' => 'text-blue-700',
+            'Training Coordinator' => 'text-green-700',
+            'Trainer' => 'text-purple-700',
+            'Branch Coordinator' => 'text-orange-700',
+            'Participant' => 'text-gray-700',
+            default => 'text-gray-700',
+        };
+    }
+}
+
 if (!function_exists('badgeStatus')) {
     /**
      * Get badge color class based on batch status
@@ -32,6 +49,25 @@ if (!function_exists('badgeStatus')) {
             'Scheduled' => 'bg-blue-100 text-blue-700',
             'Ongoing' => 'bg-green-100 text-green-700',
             'Completed' => 'bg-orange-100 text-orange-700',
+            default => 'bg-gray-100 text-gray-700',
+        };
+    }
+}
+
+if (!function_exists('badgeAction')) {
+    /**
+     * Get badge color class based on action type
+     */
+    function badgeAction(string $action): string
+    {
+        return match(strtolower($action)) {
+            'create' => 'bg-green-100 text-green-700',
+            'update' => 'bg-blue-100 text-blue-700',
+            'delete' => 'bg-red-100 text-red-700',
+            'approve' => 'bg-emerald-100 text-emerald-700',
+            'reject' => 'bg-rose-100 text-rose-700',
+            'validate' => 'bg-indigo-100 text-indigo-700',
+            'submit' => 'bg-cyan-100 text-cyan-700',
             default => 'bg-gray-100 text-gray-700',
         };
     }

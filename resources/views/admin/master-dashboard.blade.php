@@ -1,4 +1,5 @@
-@extends('layouts.app')
+{{-- resources/views/admin/master-dashboard.blade.php --}}
+@extends('layouts.admin')
 
 @section('content')
     <div class="px-2">
@@ -9,21 +10,21 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8 px-2">
         @include('dashboard.card', [
             'title'=>'Total Batch',
-            'value'=>0,
+            'value'=>$totalBatches,
             'icon'=>'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                // <path fill="none" stroke="#5EABD6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+                <path fill="none" stroke="#5EABD6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
             'color'=>'text-[#5EABD6]'
         ])
         @include('dashboard.card', [
             'title'=>'Batch Aktif',
-            'value'=>0,
+            'value'=>$activeBatches,
             'icon'=>'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                // <path fill="none" stroke="#10AF13" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7zM6 8h2m-2 4h2m8-4h2m-2 4h2"/></svg>',
+                <path fill="none" stroke="#10AF13" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7zM6 8h2m-2 4h2m8-4h2m-2 4h2"/></svg>',
             'color'=>'text-[#10AF13]'
         ])
         @include('dashboard.card', [
             'title'=>'Total Peserta',
-            'value'=>0,
+            'value'=>$totalParticipants,
             'icon'=>'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                 class="icon icon-tabler icons-tabler-outline icon-tabler-users mb-8"><path stroke="none" d="M0 0h24v24H0z" 
@@ -33,7 +34,7 @@
         ])
         @include('dashboard.card', [
             'title'=>'Lulus',
-            'value'=>0,
+            'value'=>$passedParticipants,
             'icon'=>'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                 class="icon icon-tabler icons-tabler-outline icon-tabler-trending-up mb-8"><path stroke="none" d="M0 0h24v24H0z" 
@@ -42,7 +43,7 @@
         ])
         @include('dashboard.card', [
             'title'=>'Cabang Aktif',
-            'value'=>0,
+            'value'=>$activeBranches,
             'icon'=>'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                 class="icon icon-tabler icons-tabler-outline icon-tabler-map-2 mb-8"><path stroke="none" d="M0 0h24v24H0z" 
@@ -53,7 +54,7 @@
         ])
         @include('dashboard.card', [
             'title'=>'Sertifikat',
-            'value'=>0,
+            'value'=>$totalCertificates,
             'icon'=>'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                 class="icon icon-tabler icons-tabler-outline icon-tabler-award mb-8"><path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -68,88 +69,16 @@
         <!-- TREND BULANAN -->
         <div class="bg-white border rounded-2xl p-6 flex flex-col">
             <h2 class="text-lg font-semibold mb-4">Tren Bulanan</h2>
-            <!-- WRAPPER HEIGHT -->
-            <div class="flex-1">
-                <canvas id="trendChart">
-                    <script>
-                        const trendCtx = document.getElementById('trendChart');
-                        new Chart(trendCtx, {
-                            type: 'line',
-                            data: {
-                                labels: ['Jul', 'Agu', 'Sep', 'Okt', 'Nov'],
-                                datasets: [
-                                    {
-                                        label: 'Batch',
-                                        data: [5, 8, 6, 10, 7],
-                                        borderColor: '#5EABD6',
-                                        backgroundColor: '#5EABD6',
-                                        tension: 0.4,
-                                        pointRadius: 4
-                                    },
-                                    {
-                                        label: 'Peserta',
-                                        data: [45, 78, 62, 98, 68],
-                                        borderColor: '#AD49E1',
-                                        backgroundColor: '#AD49E1',
-                                        tension: 0.4,
-                                        pointRadius: 4
-                                    }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'bottom'
-                                    }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        max: 100
-                                    }
-                                }
-                            }
-                        });
-                    </script>
-                </canvas>
+            <div class="flex-1 min-h-[300px]">
+                <canvas id="trendChart"></canvas>
             </div>
         </div>
 
         <!-- STATUS BATCH -->
         <div class="bg-white border rounded-2xl p-6 flex flex-col">
             <h2 class="text-lg font-semibold mb-4">Status Batch</h2>
-            <!-- WRAPPER HEIGHT -->
-            <div class="flex-1 flex items-center justify-center">
-                <canvas id="statusChart">
-                    <script>
-                        new Chart(document.getElementById('statusChart'), {
-                            type: 'pie',
-                            data: {
-                                labels: ['Scheduled', 'Ongoing', 'Completed'],
-                                datasets: [{
-                                    data: [33, 33, 33],
-                                    backgroundColor: [
-                                        '#3B82F6',
-                                        '#10B981',
-                                        '#F59E0B'
-                                    ],
-                                    borderColor: '#ffffff',
-                                    borderWidth: 2
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        position: 'right'
-                                    }
-                                }
-                            }
-                        });
-                    </script>
-                </canvas>
+            <div class="flex-1 flex items-center justify-center min-h-[300px]">
+                <canvas id="statusChart"></canvas>
             </div>
         </div>
     </div>
@@ -159,66 +88,13 @@
             Distribusi Peserta per Cabang
         </h2>
 
-        <!-- WRAPPER TINGGI -->
         <div class="h-[350px]">
-            <canvas id="cabangChart">
-                <script>
-                    new Chart(document.getElementById('cabangChart'), {
-                        type: 'bar',
-                        data: {
-                            labels: ['JKT-PST', 'BDG', 'SBY'],
-                            datasets: [
-                                {
-                                    label: 'Jumlah Peserta',
-                                    data: [3, 1, 0],
-                                    backgroundColor: '#AD49E1',
-                                    barPercentage: 0.6,
-                                    categoryPercentage: 0.6
-                                },
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: {
-                                mode: 'index',     // <<< menampilkan semua dataset dalam 1 label
-                                intersect: false   // <<< hover tidak harus tepat mengenai bar
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    mode: 'index',
-                                    intersect: false
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    grid: {
-                                        display: false
-                                    }
-                                },
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        stepSize: 1
-                                    },
-                                    grid: {
-                                        borderDash: [4, 4],
-                                        color: '#D1D5DB'
-                                    }
-                                }
-                            }
-                        }
-                    });
-                </script>
-            </canvas>
+            <canvas id="cabangChart"></canvas>
         </div>
         <div class="flex gap-6 text-sm font-medium text-gray-700 justify-center mt-2">
             <div class="flex items-center gap-2">
                 <span class="w-4 h-3 bg-[#AD49E1]"></span>
-                    Jumlah Peserta
+                Jumlah Peserta
             </div>
         </div>
     </div>
@@ -229,53 +105,175 @@
         </h2>
 
         <div class="space-y-4 max-h-[440px] overflow-y-auto pr-1">
-            <!-- ITEM 1 -->
+            @forelse($recentBatches as $batch)
             <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
-                <div>
+                <div class="flex-1">
                     <h3 class="text-md font-semibold text-gray-800">
-                        Python Coder Batch 3
+                        {{ $batch->title }}
                     </h3>
                     <p class="text-md font-medium text-[#737373]">
-                        TRN-2025-002 • 15/11/2025 • 8 peserta
+                        {{ $batch->category?->name ?? '-' }} • 
+                        {{ $batch->start_date->format('d/m/Y') }} • 
+                        {{ $batch->batch_participants_count }} peserta
                     </p>
                 </div>
 
-                <span class="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-[#0059FF]">
-                    SCHEDULED
+                <span class="px-3 py-1 text-sm font-medium rounded-full {{ badgeStatus($batch->status) }}">
+                    {{ strtoupper($batch->status) }}
                 </span>
             </div>
-
-            <!-- ITEM 2 -->
-            <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
-                <div>
-                    <h3 class="text-md font-semibold text-gray-800">
-                        Python Game Developer Batch 1
-                    </h3>
-                    <p class="text-md font-medium text-[#737373]">
-                        TRN-2025-001 • 10/11/2025 • 12 peserta
-                    </p>
-                </div>
-
-                <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-[#10AF13]">
-                    ONGOING
-                </span>
+            @empty
+            <div class="flex flex-col items-center justify-center py-12 text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" 
+                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" 
+                    class="text-gray-400 mb-3">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <p class="font-medium">Belum ada batch terdaftar</p>
             </div>
-
-            <!-- ITEM 3 -->
-            <div class="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition">
-                <div>
-                    <h3 class="text-md font-semibold text-gray-800">
-                        Web Development Fundamentals
-                    </h3>
-                    <p class="text-md font-medium text-[#737373]">
-                        TRN-2025-003 • 20/10/2025 • 18 peserta
-                    </p>
-                </div>
-
-                <span class="px-3 py-1 text-sm font-medium rounded-full bg-orange-100 text-[#FF4D00]">
-                    COMPLETED
-                </span>
-            </div>
+            @endforelse
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        // Trend Chart
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: @json($monthlyTrend['labels']),
+                datasets: [
+                    {
+                        label: 'Batch',
+                        data: @json($monthlyTrend['batches']),
+                        borderColor: '#5EABD6',
+                        backgroundColor: 'rgba(94, 171, 214, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#5EABD6',
+                        fill: true
+                    },
+                    {
+                        label: 'Peserta',
+                        data: @json($monthlyTrend['participants']),
+                        borderColor: '#AD49E1',
+                        backgroundColor: 'rgba(173, 73, 225, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#AD49E1',
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Status Chart
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        new Chart(statusCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Scheduled', 'Ongoing', 'Completed'],
+                datasets: [{
+                    data: [
+                        {{ $batchStatus['Scheduled'] }},
+                        {{ $batchStatus['Ongoing'] }},
+                        {{ $batchStatus['Completed'] }}
+                    ],
+                    backgroundColor: ['#3B82F6', '#10B981', '#F59E0B'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+
+        // Cabang Chart
+        const cabangCtx = document.getElementById('cabangChart').getContext('2d');
+        new Chart(cabangCtx, {
+            type: 'bar',
+            data: {
+                labels: @json($participantsPerBranch->pluck('code')),
+                datasets: [{
+                    label: 'Jumlah Peserta',
+                    data: @json($participantsPerBranch->pluck('count')),
+                    backgroundColor: '#AD49E1',
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const index = context[0].dataIndex;
+                                return @json($participantsPerBranch->pluck('name'))[index];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        },
+                        grid: {
+                            borderDash: [4, 4],
+                            color: '#D1D5DB'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+    @endpush
 @endsection

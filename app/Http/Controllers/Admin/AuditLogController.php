@@ -1,10 +1,11 @@
 <?php
-
+// app/Http/Controllers/Admin/AuditLogController.php
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Spatie\Activitylog\Models\Activity;
 
 class AuditLogController extends Controller
 {
@@ -12,60 +13,153 @@ class AuditLogController extends Controller
     {
         $roles = Role::orderBy('name')->get();
         
-        // Filter parameters
-        $search = $request->input('search');
-        $action = $request->input('action');
-        $roleId = $request->input('role_id');
+        // Build query
+        $query = Activity::with(['causer.role', 'subject'])
+            ->latest();
 
-        // For now, return dummy data
-        // In production, you should implement proper audit logging
-        // using packages like spatie/laravel-activitylog
-        
-        $auditLogs = collect([
-            [
-                'action' => 'UPDATE_BATCH',
-                'role' => 'Training Coordinator',
-                'user' => 'Koordinator Pelatihan',
-                'description' => 'Update batch: Python Game Developer Batch 1',
-                'created_at' => '2025-12-02 11:53:00',
-            ],
-            [
-                'action' => 'CREATE_BATCH',
-                'role' => 'Training Coordinator',
-                'user' => 'Koordinator Pelatihan',
-                'description' => 'Membuat batch baru: Python Game Developer Batch 1',
-                'created_at' => '2025-11-01 18:30:00',
-            ],
-            [
-                'action' => 'UPDATE_BATCH_STATUS',
-                'role' => 'Training Coordinator',
-                'user' => 'Koordinator Pelatihan',
-                'description' => 'Mengubah status batch menjadi ONGOING',
-                'created_at' => '2025-11-10 16:00:00',
-            ],
-            [
-                'action' => 'APPROVE_PARTICIPANT',
-                'role' => 'Branch Coordinator',
-                'user' => 'PIC Jakarta',
-                'description' => 'Menyetujui pendaftaran peserta: Guru Peserta',
-                'created_at' => '2025-10-21 22:20:00',
-            ],
-            [
-                'action' => 'VALIDATE_ATTENDANCE',
-                'role' => 'Trainer',
-                'user' => 'Ahmad',
-                'description' => 'Validasi kehadiran peserta: Guru Peserta',
-                'created_at' => '2025-11-10 17:05:00',
-            ],
-            [
-                'action' => 'SUBMIT_ASSIGNMENT',
-                'role' => 'Participant',
-                'user' => 'Guru Peserta',
-                'description' => 'Submit tugas: Game Sederhana dengan Pygame',
-                'created_at' => '2025-11-12 22:30:00',
-            ],
-        ]);
+        // Search filter (user atau description)
+        if ($search = $request->input('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhereHas('causer', function($query) use ($search) {
+                      $query->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
 
-        return view('admin.audit-log', compact('roles', 'auditLogs'));
+        // Action filter
+        if ($action = $request->input('action')) {
+            $query->where('event', $action);
+        }
+
+        // Role filter
+        if ($roleId = $request->input('role_id')) {
+            $query->whereHas('causer', function($q) use ($roleId) {
+                $q->where('role_id', $roleId);
+            });
+        }
+
+        // Get results (limit 100 untuk performa)
+        $activities = $query->take(100)->get();
+
+        // Transform to match view format
+        $auditLogs = $activities->map(function($activity) {
+            return [
+                'id' => $activity->id,
+                'action' => $activity->event,
+                'role' => $activity->causer?->role?->name ?? 'System',
+                'role_id' => $activity->causer?->role_id,
+                'user' => $activity->causer?->name ?? 'System',
+                'description' => $this->formatDescription($activity),
+                'created_at' => $activity->created_at->toDateTimeString(),
+            ];
+        });
+
+        // Count active filters
+        $activeFiltersCount = collect(['search', 'action', 'role_id'])
+            ->filter(fn($key) => $request->filled($key))
+            ->count();
+
+        // Build filter options
+        $filterOptions = [
+        [
+            'name' => 'action',
+            'placeholder' => 'Semua Aksi',
+            'options' => collect([
+                ['value' => '', 'label' => 'Semua Aksi'],
+                ['value' => 'created', 'label' => 'CREATE'],
+                ['value' => 'updated', 'label' => 'UPDATE'],
+                ['value' => 'deleted', 'label' => 'DELETE'],
+            ])
+        ],
+        [
+            'name' => 'role_id',
+            'placeholder' => 'Semua Role',
+            'options' => collect([
+                ['value' => '', 'label' => 'Semua Role']
+                ])->merge(
+                    $roles->map(fn($role) => [
+                        'value' => (string) $role->id,
+                        'label' => $role->name
+                    ])
+                )
+            ]
+        ];
+
+        return view('admin.audit-log', compact(
+            'roles',
+            'auditLogs',
+            'filterOptions',
+            'activeFiltersCount'
+        ));
+    }
+
+    /**
+     * Format activity description untuk display
+     */
+    private function formatDescription(Activity $activity): string
+    {
+        $subject = $activity->subject;
+        $causer = $activity->causer;
+        $event = $activity->event;
+
+        // Format berdasarkan subject type
+        if ($activity->subject_type === 'App\Models\Batch') {
+            $batchTitle = $activity->properties->get('attributes')['title'] ?? 
+                         $activity->properties->get('old')['title'] ?? 
+                         $subject?->title ?? 
+                         'Unknown Batch';
+            
+            return match($event) {
+                'created' => "Membuat batch baru: {$batchTitle}",
+                'updated' => $this->getBatchUpdateDescription($activity),
+                'deleted' => "Menghapus batch: {$batchTitle}",
+                default => "{$event} batch: {$batchTitle}"
+            };
+        }
+
+        if ($activity->subject_type === 'App\Models\User') {
+            $userName = $activity->properties->get('attributes')['name'] ?? 
+                       $activity->properties->get('old')['name'] ?? 
+                       $subject?->name ?? 
+                       'Unknown User';
+            
+            return match($event) {
+                'created' => "Membuat user baru: {$userName}",
+                'updated' => "Mengubah data user: {$userName}",
+                'deleted' => "Menghapus user: {$userName}",
+                default => "{$event} user: {$userName}"
+            };
+        }
+
+        if ($activity->subject_type === 'App\Models\BatchParticipant') {
+            return match($event) {
+                'created' => "Menyetujui pendaftaran peserta",
+                'updated' => "Mengubah status pendaftaran peserta",
+                default => "{$event} participant"
+            };
+        }
+
+        // Default description
+        return $activity->description ?? ucfirst($event) . ' ' . class_basename($activity->subject_type ?? 'item');
+    }
+
+    /**
+     * Get specific description untuk batch update
+     */
+    private function getBatchUpdateDescription(Activity $activity): string
+    {
+        $changes = $activity->properties->get('attributes', []);
+        $old = $activity->properties->get('old', []);
+
+        if (isset($changes['status']) && isset($old['status'])) {
+            return "Mengubah status batch dari {$old['status']} menjadi {$changes['status']}";
+        }
+
+        if (isset($changes['title'])) {
+            return "Update batch: {$changes['title']}";
+        }
+
+        return "Mengubah data batch";
     }
 }

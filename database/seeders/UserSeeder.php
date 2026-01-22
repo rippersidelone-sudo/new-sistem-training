@@ -18,7 +18,7 @@ class UserSeeder extends Seeder
                 'role_id' => 1, // HQ Admin
                 'branch_id' => null,
                 'name' => 'Admin Pusat',
-                'email' => 'admin@trainingnextlevel.com',
+                'email' => 'admin@gmail.com',
                 'email_verified_at' => Carbon::now(),
                 'password' => Hash::make('password123'),
                 'created_at' => Carbon::now(),
@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
                 'role_id' => 2, // Training Coordinator
                 'branch_id' => null,
                 'name' => 'Coordinator Utama',
-                'email' => 'coordinator@trainingnextlevel.com',
+                'email' => 'coordinator@gmail.com',
                 'email_verified_at' => Carbon::now(),
                 'password' => Hash::make('password123'),
                 'created_at' => Carbon::now(),
@@ -42,7 +42,7 @@ class UserSeeder extends Seeder
                 'role_id' => 3, // Trainer
                 'branch_id' => null,
                 'name' => 'Budi Santoso',
-                'email' => 'trainer1@trainingnextlevel.com',
+                'email' => 'trainer1@gmail.com',
                 'email_verified_at' => Carbon::now(),
                 'password' => Hash::make('password123'),
                 'created_at' => Carbon::now(),
@@ -54,7 +54,7 @@ class UserSeeder extends Seeder
                 'role_id' => 4, // Branch Coordinator
                 'branch_id' => 1, // Jakarta Pusat
                 'name' => 'Siti Nurhaliza',
-                'email' => 'branch.jakarta@trainingnextlevel.com',
+                'email' => 'jakarta@gmail.com',
                 'email_verified_at' => Carbon::now(),
                 'password' => Hash::make('password123'),
                 'created_at' => Carbon::now(),
@@ -66,7 +66,7 @@ class UserSeeder extends Seeder
                 'role_id' => 4, // Branch Coordinator
                 'branch_id' => 2, // Bandung
                 'name' => 'Dedi Mulyadi',
-                'email' => 'branch.bandung@trainingnextlevel.com',
+                'email' => 'bandung@gmail.com',
                 'email_verified_at' => Carbon::now(),
                 'password' => Hash::make('password123'),
                 'created_at' => Carbon::now(),
@@ -78,7 +78,7 @@ class UserSeeder extends Seeder
                 'role_id' => 5, // Participant
                 'branch_id' => 1, // Jakarta Pusat
                 'name' => 'Andi Wijaya',
-                'email' => 'andi.wijaya@teacher.com',
+                'email' => 'andi@gmail.com',
                 'email_verified_at' => Carbon::now(),
                 'password' => Hash::make('password123'),
                 'created_at' => Carbon::now(),
