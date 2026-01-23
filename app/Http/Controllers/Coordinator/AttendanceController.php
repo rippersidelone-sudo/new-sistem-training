@@ -49,7 +49,7 @@ class AttendanceController extends Controller
         $totalParticipants = (clone $participantsQuery)->distinct('user_id')->count('user_id');
 
         // Get attendance statistics
-        $validatedCount = (clone $attendanceQuery)->where('status', 'Approved')->distinct('user_id')->count('user_id');
+        $validatedCount = (clone $attendanceQuery)->where('status', 'Present')->distinct('user_id')->count('user_id');
         $checkinCount = (clone $attendanceQuery)->where('status', 'Pending')->distinct('user_id')->count('user_id');
         
         // Calculate absent (total participants - those who have attendance records)
@@ -78,9 +78,9 @@ class AttendanceController extends Controller
                 ->distinct('user_id')
                 ->count('user_id');
 
-            // Get validated attendances
+            // Get validated attendances (Present status)
             $validated = Attendance::where('batch_id', $batch->id)
-                ->where('status', 'Approved')
+                ->where('status', 'Present')
                 ->when($branchId, function($q) use ($branchId) {
                     $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
                 })
@@ -133,7 +133,7 @@ class AttendanceController extends Controller
                 $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
             })
             ->orderBy('attendance_date', 'desc')
-            ->orderBy('check_in_time', 'desc')
+            ->orderBy('checkin_time', 'desc') // FIXED: checkin_time (no underscore)
             ->paginate(15)
             ->withQueryString();
 
@@ -144,7 +144,7 @@ class AttendanceController extends Controller
             $statusClass = '';
             
             switch($attendance->status) {
-                case 'Approved':
+                case 'Present':
                     $statusLabel = 'Validated';
                     $statusClass = 'bg-green-100 text-[#10AF13]';
                     break;
@@ -152,7 +152,7 @@ class AttendanceController extends Controller
                     $statusLabel = 'Check-In';
                     $statusClass = 'bg-orange-100 text-[#FF4D00]';
                     break;
-                case 'Rejected':
+                case 'Absent':
                     $statusLabel = 'Absent';
                     $statusClass = 'bg-red-100 text-[#ff0000]';
                     break;
@@ -168,8 +168,8 @@ class AttendanceController extends Controller
                 'status' => $attendance->status,
                 'status_label' => $statusLabel,
                 'status_class' => $statusClass,
-                'check_in_time' => $attendance->check_in_time 
-                    ? \Carbon\Carbon::parse($attendance->check_in_time)->format('d M, H:i')
+                'checkin_time' => $attendance->checkin_time // FIXED: checkin_time
+                    ? \Carbon\Carbon::parse($attendance->checkin_time)->format('d M, H:i')
                     : '-',
                 'attendance_date' => $attendance->attendance_date,
             ];
@@ -207,7 +207,7 @@ class AttendanceController extends Controller
                         'status' => 'Not Attended',
                         'status_label' => 'Belum Absen',
                         'status_class' => 'bg-gray-200 text-gray-700',
-                        'check_in_time' => '-',
+                        'checkin_time' => '-',
                         'attendance_date' => null,
                     ];
                 });
@@ -287,9 +287,9 @@ class AttendanceController extends Controller
             // Data
             foreach ($attendances as $attendance) {
                 $statusLabel = match($attendance->status) {
-                    'Approved' => 'Validated',
+                    'Present' => 'Validated',
                     'Pending' => 'Check-In',
-                    'Rejected' => 'Absent',
+                    'Absent' => 'Absent',
                     default => '-'
                 };
 
@@ -301,8 +301,8 @@ class AttendanceController extends Controller
                     formatBatchCode($attendance->batch->id, $attendance->batch->created_at->year),
                     $statusLabel,
                     \Carbon\Carbon::parse($attendance->attendance_date)->format('d/m/Y'),
-                    $attendance->check_in_time 
-                        ? \Carbon\Carbon::parse($attendance->check_in_time)->format('H:i')
+                    $attendance->checkin_time // FIXED: checkin_time
+                        ? \Carbon\Carbon::parse($attendance->checkin_time)->format('H:i')
                         : '-',
                 ]);
             }

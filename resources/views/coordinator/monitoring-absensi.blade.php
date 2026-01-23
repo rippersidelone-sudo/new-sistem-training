@@ -203,7 +203,7 @@
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <p>{{ $attendance['check_in_time'] }}</p>
+                                <p>{{ $attendance['checkin_time'] }}</p>
                             </td>
                         </tr>
                         @empty

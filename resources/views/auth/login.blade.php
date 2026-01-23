@@ -12,7 +12,7 @@
                         <path d="M6 10.6v5.4a6 3 0 0 0 12 0v-5.4" />
                     </svg>
                 </div>
-                <h1 class="text-xl font-bold text-gray-800 mb-1">Sistem Pelatihan Guru</h1>
+                <h1 class="text-xl font-bold text-gray-800 mb-1">Training Next Level System</h1>
                 <p class="text-gray-600 text-sm">Silahkan login untuk melanjutkan</p>
             </div>
 
