@@ -8,68 +8,25 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Models\Role;
 
 class LoginRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\Rule|array|string>
-     */
     public function rules(): array
     {
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
-            'role' => ['required', 'string', 'exists:roles,name'],
-            'token' => ['nullable', 'string'], // Token optional, akan divalidasi jika role butuh token
         ];
     }
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
-
-        // Get the selected role
-        $selectedRole = Role::where('name', $this->input('role'))->first();
-
-        if (!$selectedRole) {
-            throw ValidationException::withMessages([
-                'role' => 'Role yang dipilih tidak valid.',
-            ]);
-        }
-
-        // Check if role requires token (all roles except Participant)
-        $requiresToken = $selectedRole->name !== 'Participant';
-
-        if ($requiresToken) {
-            // Validate token
-            if (!$this->input('token')) {
-                throw ValidationException::withMessages([
-                    'token' => 'Token akses wajib diisi untuk role ini.',
-                ]);
-            }
-
-            if ($this->input('token') !== $selectedRole->access_token) {
-                throw ValidationException::withMessages([
-                    'token' => 'Token akses tidak valid.',
-                ]);
-            }
-        }
 
         // Attempt authentication
         if (!Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
@@ -80,24 +37,9 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        // Check if user's role matches selected role
-        $user = Auth::user();
-        if ($user->role->name !== $selectedRole->name) {
-            Auth::logout();
-            
-            throw ValidationException::withMessages([
-                'role' => 'Role yang dipilih tidak sesuai dengan akun Anda.',
-            ]);
-        }
-
         RateLimiter::clear($this->throttleKey());
     }
 
-    /**
-     * Ensure the login request is not rate limited.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function ensureIsNotRateLimited(): void
     {
         if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
@@ -116,9 +58,6 @@ class LoginRequest extends FormRequest
         ]);
     }
 
-    /**
-     * Get the rate limiting throttle key for the request.
-     */
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->string('email')) . '|' . $this->ip());

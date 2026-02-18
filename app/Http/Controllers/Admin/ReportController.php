@@ -9,6 +9,7 @@ use App\Models\BatchParticipant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class ReportController extends Controller
 {
@@ -16,71 +17,153 @@ class ReportController extends Controller
     {
         $branches = Branch::orderBy('name')->get();
         
-        // Get filter values
-        $selectedMonth  = $request->input('month');
+        // ✅ Get filter values - GANTI MONTH JADI PERIOD
+        $period = $request->input('period', 'this_year'); // Default: Tahun Ini
         $selectedBranch = $request->input('branch_id');
-        // Monthly Trend Data (Last 6 months)
-        $monthlyTrend = $this->getMonthlyTrend($selectedMonth, $selectedBranch);
-
-        // Overall Statistics (Last 6 months or filtered)
-        $query = Batch::query();
-        if ($selectedMonth) {
-            [$year, $month] = explode('-', $selectedMonth);
-            $query->whereYear('created_at', $year)->whereMonth('created_at', $month);
-        } else {
-            $query->where('created_at', '>=', now()->subMonths(6));
-        }
         
-        $totalBatches = $query->count();
+        // ✅ Get date range based on period
+        $dateRange = $this->getDateRange($period);
+        
+        // Monthly Trend Data (Based on period)
+        $monthlyTrend = $this->getMonthlyTrend($period, $dateRange, $selectedBranch);
+
+        // Overall Statistics (Based on period)
+        $totalBatches = Batch::whereBetween('created_at', [$dateRange['start'], $dateRange['end']])->count();
         
         // Participants
-        $participantQuery = BatchParticipant::query();
-        if ($selectedMonth) {
-            [$year, $month] = explode('-', $selectedMonth);
-            $participantQuery->whereYear('created_at', $year)->whereMonth('created_at', $month);
-        } else {
-            $participantQuery->where('created_at', '>=', now()->subMonths(6));
-        }
+        $participantQuery = BatchParticipant::whereBetween('created_at', [$dateRange['start'], $dateRange['end']]);
         
         if ($selectedBranch) {
             $participantQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
         }
         
-        $totalParticipants = $participantQuery->distinct('user_id')->count('user_id');
+        $totalParticipants = $participantQuery->where('status', 'Approved')->distinct('user_id')->count('user_id');
         
         // Calculate pass rate
-        $passedQuery = clone $participantQuery;
-        $passedCount = $passedQuery
+        $passedQuery = BatchParticipant::whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->where('status', 'Approved')
-            ->whereHas('user.attendances', fn($q) => $q->where('status', 'Approved'))
-            ->whereHas('user.feedback')
-            ->distinct('user_id')
-            ->count('user_id');
+            ->whereHas('user', function($q) {
+                $q->whereHas('attendances', fn($subQ) => $subQ->where('status', 'Approved'));
+            });
         
+        if ($selectedBranch) {
+            $passedQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
+        }
+        
+        $passedCount = $passedQuery->distinct('user_id')->count('user_id');
         $passRate = $totalParticipants > 0 ? round(($passedCount / $totalParticipants) * 100, 1) : 0;
 
         // Branch Performance Data
-        $branchPerformance = $this->getBranchPerformance($selectedMonth);
+        $branchPerformance = $this->getBranchPerformance($dateRange, $selectedBranch);
 
         // Top Performing Batches
-        $topBatches = $this->getTopPerformingBatches($selectedMonth, $selectedBranch);
+        $topBatches = $this->getTopPerformingBatches($dateRange, $selectedBranch);
 
-        // Build filter options - HANYA MONTH & BRANCH (untuk export)
-        $filterOptions = [
+        // ✅ Build filter options - PERIOD & BRANCH
+        $filterOptions = $this->buildFilterOptions($period);
+
+        return view('admin.global-report', compact(
+            'branches',
+            'monthlyTrend',
+            'totalBatches',
+            'totalParticipants',
+            'passedCount',
+            'passRate',
+            'branchPerformance',
+            'topBatches',
+            'filterOptions',
+            'dateRange'
+        ));
+    }
+
+    /**
+     * ✅ Get date range based on period (SAMA SEPERTI DASHBOARD)
+     */
+    private function getDateRange($period)
+    {
+        $now = now();
+        
+        switch ($period) {
+            case 'today':
+                return [
+                    'start' => $now->copy()->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => 'Hari Ini'
+                ];
+                
+            case 'this_week':
+                return [
+                    'start' => $now->copy()->startOfWeek(),
+                    'end' => $now->copy()->endOfWeek(),
+                    'label' => 'Minggu Ini'
+                ];
+                
+            case 'this_month':
+                return [
+                    'start' => $now->copy()->startOfMonth(),
+                    'end' => $now->copy()->endOfMonth(),
+                    'label' => $now->locale('id')->translatedFormat('F Y')
+                ];
+                
+            case 'last_3_months':
+                return [
+                    'start' => $now->copy()->subMonths(3)->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => '3 Bulan Terakhir'
+                ];
+                
+            case 'last_6_months':
+                return [
+                    'start' => $now->copy()->subMonths(6)->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => '6 Bulan Terakhir'
+                ];
+                
+            case 'this_year':
+                return [
+                    'start' => $now->copy()->startOfYear(),
+                    'end' => $now->copy()->endOfYear(),
+                    'label' => 'Tahun ' . $now->year
+                ];
+                
+            case 'last_year':
+                return [
+                    'start' => $now->copy()->subYear()->startOfYear(),
+                    'end' => $now->copy()->subYear()->endOfYear(),
+                    'label' => 'Tahun ' . ($now->year - 1)
+                ];
+                
+            case 'all_time':
+            default:
+                $firstBatch = Batch::orderBy('created_at')->first();
+                $startDate = $firstBatch ? $firstBatch->created_at : $now->copy()->subYears(5);
+                return [
+                    'start' => $startDate->copy()->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => 'Semua Waktu'
+                ];
+        }
+    }
+
+    /**
+     * ✅ Build filter options
+     */
+    private function buildFilterOptions($period)
+    {
+        $branches = Branch::orderBy('name')->get();
+        
+        return [
             [
-                'name' => 'month',
-                'placeholder' => 'Semua Bulan',
+                'name' => 'period',
+                'placeholder' => 'Pilih Periode',
                 'options' => collect([
-                    ['value' => '', 'label' => 'Semua Bulan']
-                ])->merge(
-                    collect(range(0, 11))->map(function($i) {
-                        $date = now()->subMonths($i);
-                        return [
-                            'value' => $date->format('Y-m'),
-                            'label' => $date->format('F Y')
-                        ];
-                    })
-                )
+                    ['value' => 'this_month', 'label' => 'Bulan Ini'],
+                    ['value' => 'last_3_months', 'label' => '3 Bulan Terakhir'],
+                    ['value' => 'last_6_months', 'label' => '6 Bulan Terakhir'],
+                    ['value' => 'this_year', 'label' => 'Tahun Ini'],
+                    ['value' => 'last_year', 'label' => 'Tahun Lalu'],
+                    ['value' => 'all_time', 'label' => 'Semua Waktu'],
+                ])
             ],
             [
                 'name' => 'branch_id',
@@ -95,18 +178,6 @@ class ReportController extends Controller
                 )
             ]
         ];
-
-        return view('admin.global-report', compact(
-            'branches',
-            'monthlyTrend',
-            'totalBatches',
-            'totalParticipants',
-            'passedCount',
-            'passRate',
-            'branchPerformance',
-            'topBatches',
-            'filterOptions'          // <-- ditambahkan ke compact
-        ));
     }
 
     /**
@@ -115,28 +186,23 @@ class ReportController extends Controller
     public function export(Request $request)
     {
         $type = $request->input('type', 'monthly');
-        $month = $request->input('month');
+        $period = $request->input('period', 'this_year');
         $branchId = $request->input('branch_id');
         
+        $dateRange = $this->getDateRange($period);
+        
         if ($type === 'monthly') {
-            return $this->exportMonthlyReport($month, $branchId);
+            return $this->exportMonthlyReport($dateRange, $branchId);
         } else {
-            return $this->exportCompleteReport($month, $branchId);
+            return $this->exportCompleteReport($dateRange, $branchId);
         }
     }
 
-    private function exportMonthlyReport($month, $branchId)
+    private function exportMonthlyReport($dateRange, $branchId)
     {
-        $query = Batch::with(['trainer', 'category']);
-        
-        if ($month) {
-            [$year, $m] = explode('-', $month);
-            $query->whereYear('created_at', $year)->whereMonth('created_at', $m);
-        } else {
-            $query->where('created_at', '>=', now()->subMonths(6));
-        }
-        
-        $batches = $query->get();
+        $batches = Batch::with(['trainer', 'category'])
+            ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
+            ->get();
 
         return response()->streamDownload(function() use ($batches) {
             $handle = fopen('php://output', 'w');
@@ -160,11 +226,15 @@ class ReportController extends Controller
             
             // Data
             foreach ($batches as $batch) {
-                $totalParticipants = $batch->batchParticipants()->count();
+                $totalParticipants = $batch->batchParticipants()->where('status', 'Approved')->count();
                 $passedParticipants = $batch->batchParticipants()
                     ->where('status', 'Approved')
-                    ->whereHas('user.attendances', fn($q) => $q->where('status', 'Approved'))
-                    ->whereHas('user.feedback')
+                    ->whereHas('user', function($q) use ($batch) {
+                        $q->whereHas('attendances', function($subQ) use ($batch) {
+                            $subQ->where('batch_id', $batch->id)
+                                ->where('status', 'Approved');
+                        });
+                    })
                     ->count();
                 
                 $passRate = $totalParticipants > 0 ? round(($passedParticipants / $totalParticipants) * 100, 1) : 0;
@@ -187,14 +257,10 @@ class ReportController extends Controller
         }, 'laporan-bulanan-' . date('Y-m-d') . '.csv');
     }
 
-    private function exportCompleteReport($month, $branchId)
+    private function exportCompleteReport($dateRange, $branchId)
     {
-        $query = BatchParticipant::with(['batch', 'user.branch']);
-        
-        if ($month) {
-            [$year, $m] = explode('-', $month);
-            $query->whereYear('created_at', $year)->whereMonth('created_at', $m);
-        }
+        $query = BatchParticipant::with(['batch', 'user.branch'])
+            ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']]);
         
         if ($branchId) {
             $query->whereHas('user', fn($q) => $q->where('branch_id', $branchId));
@@ -217,7 +283,6 @@ class ReportController extends Controller
                 'Cabang',
                 'Status Pendaftaran',
                 'Kehadiran',
-                'Feedback',
                 'Status Kelulusan'
             ]);
             
@@ -227,12 +292,8 @@ class ReportController extends Controller
                     ->where('batch_id', $participant->batch_id)
                     ->where('status', 'Approved')
                     ->exists();
-                    
-                $feedback = $participant->user->feedback()
-                    ->where('batch_id', $participant->batch_id)
-                    ->exists();
                 
-                $isPassed = $participant->status === 'Approved' && $attendance && $feedback;
+                $isPassed = $participant->status === 'Approved' && $attendance;
                 
                 fputcsv($handle, [
                     formatBatchCode($participant->batch->id, $participant->batch->created_at->year),
@@ -242,7 +303,6 @@ class ReportController extends Controller
                     $participant->user->branch->name ?? '-',
                     $participant->status,
                     $attendance ? 'Hadir' : 'Tidak Hadir',
-                    $feedback ? 'Sudah' : 'Belum',
                     $isPassed ? 'LULUS' : 'TIDAK LULUS'
                 ]);
             }
@@ -251,48 +311,96 @@ class ReportController extends Controller
         }, 'laporan-lengkap-' . date('Y-m-d') . '.csv');
     }
 
-    private function getMonthlyTrend($selectedMonth = null, $selectedBranch = null)
+    /**
+     * ✅ Get monthly trend based on period
+     */
+    private function getMonthlyTrend($period, $dateRange, $selectedBranch = null)
     {
         $months = [];
         $batchData = [];
         $participantData = [];
         $passedData = [];
 
-        for ($i = 5; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
-            $months[] = $date->format('M');
-
-            // Batches
-            $batchQuery = Batch::whereYear('created_at', $date->year)
-                ->whereMonth('created_at', $date->month);
+        // ✅ Untuk yearly view, tampilkan 12 bulan
+        if (in_array($period, ['this_year', 'last_year'])) {
+            $year = $dateRange['start']->year;
             
-            $batchCount = $batchQuery->count();
-            $batchData[] = $batchCount;
+            for ($month = 1; $month <= 12; $month++) {
+                $date = Carbon::create($year, $month, 1);
+                $months[] = $date->locale('id')->translatedFormat('M');
 
-            // Participants
-            $participantQuery = BatchParticipant::whereYear('created_at', $date->year)
-                ->whereMonth('created_at', $date->month);
-            
-            if ($selectedBranch) {
-                $participantQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
+                // Batches
+                $batchCount = Batch::whereYear('created_at', $year)
+                    ->whereMonth('created_at', $month)
+                    ->count();
+                $batchData[] = $batchCount;
+
+                // Participants
+                $participantQuery = BatchParticipant::whereYear('created_at', $year)
+                    ->whereMonth('created_at', $month)
+                    ->where('status', 'Approved');
+                
+                if ($selectedBranch) {
+                    $participantQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
+                }
+                
+                $participantCount = $participantQuery->distinct('user_id')->count('user_id');
+                $participantData[] = $participantCount;
+
+                // Passed
+                $passedQuery = BatchParticipant::whereYear('created_at', $year)
+                    ->whereMonth('created_at', $month)
+                    ->where('status', 'Approved')
+                    ->whereHas('user', function($q) {
+                        $q->whereHas('attendances', fn($subQ) => $subQ->where('status', 'Approved'));
+                    });
+                
+                if ($selectedBranch) {
+                    $passedQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
+                }
+                
+                $passedCount = $passedQuery->distinct('user_id')->count('user_id');
+                $passedData[] = $passedCount;
             }
-            
-            $participantCount = $participantQuery->distinct('user_id')->count('user_id');
-            $participantData[] = $participantCount;
+        } else {
+            // ✅ Untuk periode lain, tampilkan 6 bulan terakhir
+            for ($i = 5; $i >= 0; $i--) {
+                $date = now()->subMonths($i);
+                $months[] = $date->locale('id')->translatedFormat('M Y');
 
-            // Passed
-            $passedQuery = BatchParticipant::whereYear('created_at', $date->year)
-                ->whereMonth('created_at', $date->month)
-                ->where('status', 'Approved')
-                ->whereHas('user.attendances', fn($q) => $q->where('status', 'Approved'))
-                ->whereHas('user.feedback');
-            
-            if ($selectedBranch) {
-                $passedQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
+                // Batches
+                $batchCount = Batch::whereYear('created_at', $date->year)
+                    ->whereMonth('created_at', $date->month)
+                    ->count();
+                $batchData[] = $batchCount;
+
+                // Participants
+                $participantQuery = BatchParticipant::whereYear('created_at', $date->year)
+                    ->whereMonth('created_at', $date->month)
+                    ->where('status', 'Approved');
+                
+                if ($selectedBranch) {
+                    $participantQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
+                }
+                
+                $participantCount = $participantQuery->distinct('user_id')->count('user_id');
+                $participantData[] = $participantCount;
+
+                // Passed
+                $passedQuery = BatchParticipant::whereYear('created_at', $date->year)
+                    ->whereMonth('created_at', $date->month)
+                    ->where('status', 'Approved')
+                    ->whereHas('user', function($q) {
+                        $q->whereHas('attendances', fn($subQ) => $subQ->where('status', 'Approved'));
+                    });
+                
+                if ($selectedBranch) {
+                    $passedQuery->whereHas('user', fn($q) => $q->where('branch_id', $selectedBranch));
+                }
+                
+                $passedCount = $passedQuery->distinct('user_id')->count('user_id');
+                $passedData[] = $passedCount;
             }
-            
-            $passedCount = $passedQuery->distinct('user_id')->count('user_id');
-            $passedData[] = $passedCount;
         }
 
         return [
@@ -303,37 +411,35 @@ class ReportController extends Controller
         ];
     }
 
-    private function getBranchPerformance($selectedMonth = null)
+    /**
+     * ✅ Get branch performance based on date range
+     */
+    private function getBranchPerformance($dateRange, $selectedBranch = null)
     {
-        return Branch::withCount(['users as participants_count' => function($q) use ($selectedMonth) {
-            $q->whereHas('role', fn($query) => $query->where('name', 'Participant'));
+        $query = Branch::query();
+        
+        if ($selectedBranch) {
+            $query->where('id', $selectedBranch);
+        }
+        
+        return $query->get()->map(function($branch) use ($dateRange) {
+            // Total participants in period
+            $participants = BatchParticipant::whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
+                ->where('status', 'Approved')
+                ->whereHas('user', fn($q) => $q->where('branch_id', $branch->id))
+                ->distinct('user_id')
+                ->count('user_id');
             
-            if ($selectedMonth) {
-                [$year, $month] = explode('-', $selectedMonth);
-                $q->whereHas('batchParticipants', function($query) use ($year, $month) {
-                    $query->whereYear('created_at', $year)->whereMonth('created_at', $month);
-                });
-            }
-        }])
-        ->get()
-        ->map(function($branch) use ($selectedMonth) {
-            $participants = $branch->participants_count;
-            
-            // Count passed participants
-            $passedQuery = User::where('branch_id', $branch->id)
-                ->whereHas('role', fn($q) => $q->where('name', 'Participant'))
-                ->whereHas('batchParticipants', function($q) use ($selectedMonth) {
-                    $q->where('status', 'Approved');
-                    
-                    if ($selectedMonth) {
-                        [$year, $month] = explode('-', $selectedMonth);
-                        $q->whereYear('created_at', $year)->whereMonth('created_at', $month);
-                    }
+            // Passed participants
+            $passed = BatchParticipant::whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
+                ->where('status', 'Approved')
+                ->whereHas('user', function($q) use ($branch) {
+                    $q->where('branch_id', $branch->id)
+                      ->whereHas('attendances', fn($subQ) => $subQ->where('status', 'Approved'));
                 })
-                ->whereHas('attendances', fn($q) => $q->where('status', 'Approved'))
-                ->whereHas('feedback');
+                ->distinct('user_id')
+                ->count('user_id');
             
-            $passed = $passedQuery->distinct()->count();
             $passRate = $participants > 0 ? round(($passed / $participants) * 100, 1) : 0;
 
             return [
@@ -342,23 +448,23 @@ class ReportController extends Controller
                 'passed' => $passed,
                 'pass_rate' => $passRate,
             ];
-        });
+        })->filter(fn($item) => $item['participants'] > 0); // Only show branches with participants
     }
 
-    private function getTopPerformingBatches($selectedMonth = null, $selectedBranch = null)
+    /**
+     * ✅ Get top performing batches based on date range
+     */
+    private function getTopPerformingBatches($dateRange, $selectedBranch = null)
     {
         $query = Batch::with(['category', 'trainer'])
             ->withCount('batchParticipants as participants_count')
+            ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->where('status', 'Completed');
-        
-        if ($selectedMonth) {
-            [$year, $month] = explode('-', $selectedMonth);
-            $query->whereYear('created_at', $year)->whereMonth('created_at', $month);
-        }
         
         return $query->get()
             ->map(function($batch) use ($selectedBranch) {
-                $totalQuery = BatchParticipant::where('batch_id', $batch->id);
+                $totalQuery = BatchParticipant::where('batch_id', $batch->id)
+                    ->where('status', 'Approved');
                 $passedQuery = clone $totalQuery;
                 
                 if ($selectedBranch) {
@@ -368,9 +474,12 @@ class ReportController extends Controller
                 
                 $total = $totalQuery->count();
                 $passed = $passedQuery
-                    ->where('status', 'Approved')
-                    ->whereHas('user.attendances', fn($q) => $q->where('status', 'Approved'))
-                    ->whereHas('user.feedback')
+                    ->whereHas('user', function($q) use ($batch) {
+                        $q->whereHas('attendances', function($subQ) use ($batch) {
+                            $subQ->where('batch_id', $batch->id)
+                                ->where('status', 'Approved');
+                        });
+                    })
                     ->count();
                 
                 $completionRate = $total > 0 ? round(($passed / $total) * 100) : 0;

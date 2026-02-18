@@ -17,8 +17,7 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        $roles = \App\Models\Role::orderBy('name')->get();
-        return view('auth.login', compact('roles'));
+        return view('auth.login');
     }
 
     /**
@@ -30,7 +29,7 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         // Redirect based on user role
-        $user = Auth::user();
+        $user = Auth::user(); 
         
         return redirect()->intended($this->redirectPath($user));
     }

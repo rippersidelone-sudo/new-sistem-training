@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Coordinator;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
+use App\Models\BatchSession;
 use App\Models\Category;
 use App\Models\User;
-use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -18,8 +18,8 @@ class BatchController extends Controller
      */
     public function index(Request $request)
     {
-        // Start query with relationships
-        $query = Batch::with(['category', 'trainer'])
+        // Start query with relationships including sessions
+        $query = Batch::with(['category', 'trainer', 'sessions.trainer'])
             ->withCount('batchParticipants');
 
         // Search filter
@@ -27,7 +27,8 @@ class BatchController extends Controller
             $query->where(function($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
                   ->orWhereHas('category', fn($query) => $query->where('name', 'like', "%{$search}%"))
-                  ->orWhereHas('trainer', fn($query) => $query->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('trainer', fn($query) => $query->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('sessions.trainer', fn($query) => $query->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -49,23 +50,31 @@ class BatchController extends Controller
         }
 
         // Get paginated results
-        $batches = $query->paginate(9)
-            ->withQueryString();
+        $batches = $query->paginate(9)->withQueryString();
 
         // Transform data for view
         $batches->getCollection()->transform(function($batch) {
+            $firstSession = $batch->sessions->first();
+            $lastSession = $batch->sessions->last();
+            
             return [
                 'id' => $batch->id,
                 'code' => formatBatchCode($batch->id, $batch->created_at->year),
                 'title' => $batch->title,
                 'category' => $batch->category->name,
                 'trainer' => $batch->trainer->name,
-                'start_date' => $batch->start_date,
-                'end_date' => $batch->end_date,
+                'start_date' => $firstSession ? $firstSession->start_datetime : $batch->start_date,
+                'end_date' => $lastSession ? $lastSession->end_datetime : $batch->end_date,
                 'status' => $batch->status,
                 'participants_count' => $batch->batch_participants_count ?? 0,
                 'max_quota' => $batch->max_quota,
                 'zoom_link' => $batch->zoom_link,
+                
+                // Sessions data
+                'sessions_count' => $batch->sessions->count(),
+                'sessions' => $batch->sessions,
+                'date_range_summary' => $batch->getDateRangeSummary(),
+                'trainers_summary' => $batch->getTrainersSummary(),
             ];
         });
 
@@ -77,7 +86,7 @@ class BatchController extends Controller
 
         // Get data for form dropdowns
         $categories = Category::orderBy('name')->get();
-        $trainers = User::where('role_id', 3)->orderBy('name')->get(); // role_id 3 = Trainer
+        $trainers = User::where('role_id', 3)->orderBy('name')->get();
 
         return view('coordinator.batch-management.batch-management', compact(
             'batches',
@@ -91,7 +100,7 @@ class BatchController extends Controller
     }
 
     /**
-     * Store a newly created batch with tasks
+     * Store a newly created batch with sessions
      */
     public function store(Request $request)
     {
@@ -99,31 +108,36 @@ class BatchController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'category_id' => ['required', 'exists:categories,id'],
             'trainer_id' => ['required', 'exists:users,id'],
-            'start_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'end_time' => ['required', 'date_format:H:i'],
             'min_quota' => ['required', 'integer', 'min:0'],
             'max_quota' => ['required', 'integer', 'min:1', 'gte:min_quota'],
-            'zoom_link' => ['required', 'url'],
+            'zoom_link' => ['nullable', 'url'], // ✅ NULLABLE
             
-            // Tasks (optional)
-            'tasks' => ['nullable', 'array'],
-            'tasks.*.title' => ['required_with:tasks', 'string', 'max:255'],
-            'tasks.*.description' => ['required_with:tasks', 'string'],
-            'tasks.*.deadline' => ['required_with:tasks', 'date'],
+            // Sessions validation
+            'sessions' => ['required', 'array', 'min:1'],
+            'sessions.*.session_number' => ['required', 'integer', 'min:1'],
+            'sessions.*.trainer_id' => ['required', 'exists:users,id'],
+            'sessions.*.start_date' => ['required', 'date'],
+            'sessions.*.start_time' => ['required', 'date_format:H:i'],
+            'sessions.*.end_date' => ['required', 'date'],
+            'sessions.*.end_time' => ['required', 'date_format:H:i'],
+            'sessions.*.zoom_link' => ['nullable', 'url'],
+            'sessions.*.title' => ['nullable', 'string', 'max:200'],
         ]);
 
         DB::beginTransaction();
         try {
-            // Combine date and time
-            $startDateTime = Carbon::parse($validated['start_date'] . ' ' . $validated['start_time']);
-            $endDateTime = Carbon::parse($validated['end_date'] . ' ' . $validated['end_time']);
+            // Sort sessions and get date boundaries
+            $sessions = collect($validated['sessions'])->sortBy('session_number');
+            $firstSession = $sessions->first();
+            $lastSession = $sessions->last();
+            
+            $startDateTime = Carbon::parse($firstSession['start_date'] . ' ' . $firstSession['start_time']);
+            $endDateTime = Carbon::parse($lastSession['end_date'] . ' ' . $lastSession['end_time']);
 
-            // Validate end datetime is after start datetime
+            // Validate overall date range
             if ($endDateTime->lte($startDateTime)) {
                 return back()->withErrors([
-                    'end_time' => 'Waktu selesai harus setelah waktu mulai.'
+                    'sessions' => 'Waktu selesai batch harus setelah waktu mulai batch.'
                 ])->withInput();
             }
 
@@ -136,41 +150,103 @@ class BatchController extends Controller
                 'end_date' => $endDateTime,
                 'min_quota' => $validated['min_quota'],
                 'max_quota' => $validated['max_quota'],
-                'zoom_link' => $validated['zoom_link'],
-                'status' => 'Scheduled', // Default status
+                'zoom_link' => $validated['zoom_link'], // Can be null
+                'status' => 'Scheduled',
             ]);
 
-            // Create tasks if provided
-            if (!empty($validated['tasks'])) {
-                foreach ($validated['tasks'] as $taskData) {
-                    $batch->tasks()->create([
-                        'title' => $taskData['title'],
-                        'description' => $taskData['description'],
-                        'deadline' => Carbon::parse($taskData['deadline']),
-                        'is_active' => true,
-                    ]);
+            // Create sessions
+            foreach ($validated['sessions'] as $sessionData) {
+                $sessionStart = Carbon::parse($sessionData['start_date'] . ' ' . $sessionData['start_time']);
+                $sessionEnd = Carbon::parse($sessionData['end_date'] . ' ' . $sessionData['end_time']);
+                
+                // Validate session time
+                if ($sessionEnd->lte($sessionStart)) {
+                    throw new \Exception('Sesi ke-' . $sessionData['session_number'] . ': Waktu selesai harus setelah waktu mulai');
                 }
+                
+                BatchSession::create([
+                    'batch_id' => $batch->id,
+                    'trainer_id' => $sessionData['trainer_id'],
+                    'session_number' => $sessionData['session_number'],
+                    'title' => $sessionData['title'] ?? null,
+                    'start_datetime' => $sessionStart,
+                    'end_datetime' => $sessionEnd,
+                    'zoom_link' => $sessionData['zoom_link'] ?? $validated['zoom_link'], // Use session zoom or default
+                ]);
             }
 
             DB::commit();
 
+            $sessionText = count($validated['sessions']) === 1 ? '1 sesi' : count($validated['sessions']) . ' sesi';
+            
             return redirect()->route('coordinator.batches.index')
-                ->with('success', 'Batch "' . $batch->title . '" berhasil dibuat!');
+                ->with('success', 'Batch "' . $batch->title . '" dengan ' . $sessionText . ' berhasil dibuat!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
         }
     }
 
     /**
-     * Display the specified batch with details
+     * Display the specified batch with details (AJAX for modal)
      */
     public function show(Batch $batch)
     {
+        // If AJAX request for modal detail
+        if (request()->ajax() || request()->wantsJson()) {
+            $batch->load([
+                'category',
+                'trainer',
+                'sessions' => function($query) {
+                    $query->orderBy('session_number');
+                },
+                'sessions.trainer'
+            ]);
+            
+            return response()->json([
+                'batch' => [
+                    'id' => $batch->id,
+                    'code' => formatBatchCode($batch->id, $batch->created_at->year),
+                    'title' => $batch->title,
+                    'category_id' => $batch->category_id,
+                    'category_name' => $batch->category->name,
+                    'trainer_id' => $batch->trainer_id,
+                    'trainer_name' => $batch->trainer->name,
+                    'status' => $batch->status,
+                    'min_quota' => $batch->min_quota,
+                    'max_quota' => $batch->max_quota,
+                    'zoom_link' => $batch->zoom_link,
+                    'participants_count' => $batch->participants_count,
+                    'sessions_count' => $batch->sessions->count(),
+                    'date_range_summary' => $batch->getDateRangeSummary(),
+                    'trainers_summary' => $batch->getTrainersSummary(),
+                ],
+                'sessions' => $batch->sessions->map(function($session) {
+                    return [
+                        'id' => $session->id,
+                        'session_number' => $session->session_number,
+                        'title' => $session->title,
+                        'trainer_id' => $session->trainer_id,
+                        'trainer_name' => $session->trainer->name ?? '',
+                        'start_date' => $session->start_datetime->format('Y-m-d'),
+                        'start_time' => $session->start_datetime->format('H:i'),
+                        'end_date' => $session->end_datetime->format('Y-m-d'),
+                        'end_time' => $session->end_datetime->format('H:i'),
+                        'zoom_link' => $session->zoom_link,
+                        'notes' => $session->notes,
+                        'duration_minutes' => $session->getDurationInMinutes(),
+                        'formatted_date' => formatDate($session->start_datetime, 'd M Y'),
+                    ];
+                }),
+            ]);
+        }
+        
+        // Regular page view (untuk monitoring page, dll)
         $batch->load([
             'category',
             'trainer',
+            'sessions.trainer',
             'tasks' => function($query) {
                 $query->orderBy('deadline', 'asc');
             },
@@ -184,13 +260,13 @@ class BatchController extends Controller
     }
 
     /**
-     * Show the form for editing the specified batch
+     * Show the form for editing the specified batch (AJAX)
      */
     public function edit(Batch $batch)
     {
         // Only respond to AJAX requests
         if (request()->ajax() || request()->wantsJson()) {
-            $batch->load('category', 'trainer', 'tasks');
+            $batch->load('category', 'trainer', 'sessions.trainer');
             
             return response()->json([
                 'batch' => [
@@ -198,22 +274,23 @@ class BatchController extends Controller
                     'title' => $batch->title,
                     'category_id' => $batch->category_id,
                     'trainer_id' => $batch->trainer_id,
-                    'start_date' => $batch->start_date->format('Y-m-d'),
-                    'start_time' => $batch->start_date->format('H:i'),
-                    'end_date' => $batch->end_date->format('Y-m-d'),
-                    'end_time' => $batch->end_date->format('H:i'),
                     'min_quota' => $batch->min_quota,
                     'max_quota' => $batch->max_quota,
                     'zoom_link' => $batch->zoom_link,
                     'status' => $batch->status,
                 ],
-                'tasks' => $batch->tasks->map(function($task) {
+                'sessions' => $batch->sessions->map(function($session) {
                     return [
-                        'id' => $task->id,
-                        'title' => $task->title,
-                        'description' => $task->description,
-                        'deadline' => $task->deadline->format('Y-m-d'),
-                        'is_active' => $task->is_active ?? true,
+                        'id' => $session->id,
+                        'session_number' => $session->session_number,
+                        'trainer_id' => $session->trainer_id,
+                        'trainer_name' => $session->trainer->name ?? '',
+                        'title' => $session->title,
+                        'start_date' => $session->start_datetime->format('Y-m-d'),
+                        'start_time' => $session->start_datetime->format('H:i'),
+                        'end_date' => $session->end_datetime->format('Y-m-d'),
+                        'end_time' => $session->end_datetime->format('H:i'),
+                        'zoom_link' => $session->zoom_link,
                     ];
                 }),
                 'categories' => Category::orderBy('name')->get(['id', 'name']),
@@ -221,12 +298,11 @@ class BatchController extends Controller
             ]);
         }
         
-        // If not AJAX, return 404
         return abort(404);
     }
 
     /**
-     * Update the specified batch
+     * Update the specified batch with sessions
      */
     public function update(Request $request, Batch $batch)
     {
@@ -234,34 +310,38 @@ class BatchController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'category_id' => ['required', 'exists:categories,id'],
             'trainer_id' => ['required', 'exists:users,id'],
-            'start_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'end_time' => ['required', 'date_format:H:i'],
             'min_quota' => ['required', 'integer', 'min:0'],
             'max_quota' => ['required', 'integer', 'min:1', 'gte:min_quota'],
-            'zoom_link' => ['required', 'url'],
+            'zoom_link' => ['nullable', 'url'], // ✅ NULLABLE
             'status' => ['required', 'in:Scheduled,Ongoing,Completed'],
             
-            // Tasks (for update)
-            'tasks' => ['nullable', 'array'],
-            'tasks.*.id' => ['nullable', 'exists:tasks,id'],
-            'tasks.*.title' => ['required_with:tasks', 'string', 'max:255'],
-            'tasks.*.description' => ['required_with:tasks', 'string'],
-            'tasks.*.deadline' => ['required_with:tasks', 'date'],
-            'tasks.*.is_active' => ['nullable', 'boolean'],
+            // Sessions validation
+            'sessions' => ['required', 'array', 'min:1'],
+            'sessions.*.id' => ['nullable', 'exists:batch_sessions,id'],
+            'sessions.*.session_number' => ['required', 'integer', 'min:1'],
+            'sessions.*.trainer_id' => ['required', 'exists:users,id'],
+            'sessions.*.start_date' => ['required', 'date'],
+            'sessions.*.start_time' => ['required', 'date_format:H:i'],
+            'sessions.*.end_date' => ['required', 'date'],
+            'sessions.*.end_time' => ['required', 'date_format:H:i'],
+            'sessions.*.zoom_link' => ['nullable', 'url'],
+            'sessions.*.title' => ['nullable', 'string', 'max:200'],
         ]);
 
         DB::beginTransaction();
         try {
-            // Combine date and time
-            $startDateTime = Carbon::parse($validated['start_date'] . ' ' . $validated['start_time']);
-            $endDateTime = Carbon::parse($validated['end_date'] . ' ' . $validated['end_time']);
+            // Sort sessions and get date boundaries
+            $sessions = collect($validated['sessions'])->sortBy('session_number');
+            $firstSession = $sessions->first();
+            $lastSession = $sessions->last();
+            
+            $startDateTime = Carbon::parse($firstSession['start_date'] . ' ' . $firstSession['start_time']);
+            $endDateTime = Carbon::parse($lastSession['end_date'] . ' ' . $lastSession['end_time']);
 
-            // Validate end datetime is after start datetime
+            // Validate overall date range
             if ($endDateTime->lte($startDateTime)) {
                 return back()->withErrors([
-                    'end_time' => 'Waktu selesai harus setelah waktu mulai.'
+                    'sessions' => 'Waktu selesai batch harus setelah waktu mulai batch.'
                 ])->withInput();
             }
 
@@ -274,44 +354,32 @@ class BatchController extends Controller
                 'end_date' => $endDateTime,
                 'min_quota' => $validated['min_quota'],
                 'max_quota' => $validated['max_quota'],
-                'zoom_link' => $validated['zoom_link'],
+                'zoom_link' => $validated['zoom_link'], // Can be null
                 'status' => $validated['status'],
             ]);
 
-            // Update or create tasks
-            if (!empty($validated['tasks'])) {
-                $existingTaskIds = [];
-                
-                foreach ($validated['tasks'] as $taskData) {
-                    if (!empty($taskData['id'])) {
-                        // Update existing task
-                        $task = Task::find($taskData['id']);
-                        if ($task && $task->batch_id === $batch->id) {
-                            $task->update([
-                                'title' => $taskData['title'],
-                                'description' => $taskData['description'],
-                                'deadline' => Carbon::parse($taskData['deadline']),
-                                'is_active' => $taskData['is_active'] ?? true,
-                            ]);
-                            $existingTaskIds[] = $task->id;
-                        }
-                    } else {
-                        // Create new task
-                        $task = $batch->tasks()->create([
-                            'title' => $taskData['title'],
-                            'description' => $taskData['description'],
-                            'deadline' => Carbon::parse($taskData['deadline']),
-                            'is_active' => true,
-                        ]);
-                        $existingTaskIds[] = $task->id;
-                    }
-                }
+            // Delete old sessions
+            $batch->sessions()->delete();
 
-                // Soft delete tasks that were removed
-                $batch->tasks()->whereNotIn('id', $existingTaskIds)->delete();
-            } else {
-                // If no tasks submitted, delete all existing tasks
-                $batch->tasks()->delete();
+            // Create new sessions
+            foreach ($validated['sessions'] as $sessionData) {
+                $sessionStart = Carbon::parse($sessionData['start_date'] . ' ' . $sessionData['start_time']);
+                $sessionEnd = Carbon::parse($sessionData['end_date'] . ' ' . $sessionData['end_time']);
+                
+                // Validate session time
+                if ($sessionEnd->lte($sessionStart)) {
+                    throw new \Exception('Sesi ke-' . $sessionData['session_number'] . ': Waktu selesai harus setelah waktu mulai');
+                }
+                
+                BatchSession::create([
+                    'batch_id' => $batch->id,
+                    'trainer_id' => $sessionData['trainer_id'],
+                    'session_number' => $sessionData['session_number'],
+                    'title' => $sessionData['title'] ?? null,
+                    'start_datetime' => $sessionStart,
+                    'end_datetime' => $sessionEnd,
+                    'zoom_link' => $sessionData['zoom_link'] ?? $validated['zoom_link'], // Use session zoom or default
+                ]);
             }
 
             DB::commit();
@@ -321,7 +389,7 @@ class BatchController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
         }
     }
 
@@ -350,7 +418,10 @@ class BatchController extends Controller
         
         DB::beginTransaction();
         try {
-            // Delete related tasks first
+            // Delete sessions
+            $batch->sessions()->delete();
+            
+            // Delete related tasks
             $batch->tasks()->delete();
             
             // Delete the batch
@@ -364,7 +435,7 @@ class BatchController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors([
-                'error' => 'Terjadi kesalahan saat menghapus batch.'
+                'error' => 'Terjadi kesalahan saat menghapus batch: ' . $e->getMessage()
             ]);
         }
     }
@@ -377,6 +448,7 @@ class BatchController extends Controller
         $batch->load([
             'category',
             'trainer',
+            'sessions.trainer',
             'batchParticipants.user.branch',
             'attendances.user',
             'tasks.submissions.user'

@@ -10,9 +10,8 @@ return new class extends Migration
     {
         Schema::create('roles', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->string('description')->nullable();
-            $table->text('access_token')->nullable();
+            $table->string('name', 50)->unique();
+            $table->string('description', 255)->nullable();
             $table->timestamps();
             $table->softDeletes();
             

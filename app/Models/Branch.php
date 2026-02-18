@@ -12,8 +12,12 @@ class Branch extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'external_id',  
+        'code',         
         'name',
         'address',
+        'contact',      
+        'last_synced_at', 
     ];
 
     /**

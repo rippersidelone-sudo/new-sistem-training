@@ -20,6 +20,7 @@ class Task extends Model
 
     protected $casts = [
         'deadline' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     /**

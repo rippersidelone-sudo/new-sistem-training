@@ -6,32 +6,28 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('batch_materials', function (Blueprint $table) {
             $table->id();
             $table->foreignId('batch_id')->constrained()->cascadeOnDelete();
-            $table->string('title');
+            $table->string('title', 200);
             $table->enum('type', ['pdf', 'video', 'recording', 'link'])->default('link');
-            $table->string('url', 500);
+            $table->string('url', 1000);
             $table->text('description')->nullable();
             $table->foreignId('uploaded_by')->constrained('users')->cascadeOnDelete();
-            $table->string('uploaded_by_name')->nullable(); // Denormalized for quick access
+            $table->string('uploaded_by_name', 100)->nullable();
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('batch_id');
-            $table->index('type');
-            $table->index('uploaded_by');
+            $table->index(['batch_id', 'type'], 'idx_bm_batch_type');
+            $table->index(['batch_id', 'deleted_at'], 'idx_bm_batch_deleted');
+            $table->index('uploaded_by', 'idx_bm_uploaded_by');
+            $table->index(['batch_id', 'created_at'], 'idx_bm_batch_created');
+            $table->index('deleted_at', 'idx_bm_deleted');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('batch_materials');

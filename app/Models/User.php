@@ -10,16 +10,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+// ✅ Spatie Activity Log
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes, LogsActivity;
 
     protected $fillable = [
+        'external_id',
         'role_id',
         'branch_id',
         'name',
         'email',
+        'phone',
         'password',
+        'last_synced_at',
     ];
 
     protected $hidden = [
@@ -31,9 +38,18 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            // ✅ Laravel will hash automatically
             'password' => 'hashed',
+            'last_synced_at' => 'datetime',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+            'deleted_at' => 'datetime',
         ];
     }
+
+    // ============================================================
+    // RELATIONSHIPS
+    // ============================================================
 
     public function role(): BelongsTo
     {
@@ -84,23 +100,24 @@ class User extends Authenticatable
         return $this->hasMany(Certificate::class);
     }
 
-    // Participants approved by this user
     public function approvedParticipants(): HasMany
     {
         return $this->hasMany(BatchParticipant::class, 'approved_by');
     }
 
-    // Submissions reviewed by this user
     public function reviewedSubmissions(): HasMany
     {
         return $this->hasMany(TaskSubmission::class, 'reviewed_by');
     }
 
-    // Certificates issued by this user
     public function issuedCertificates(): HasMany
     {
         return $this->hasMany(Certificate::class, 'issued_by');
     }
+
+    // ============================================================
+    // ACTIVITY LOG
+    // ============================================================
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -111,4 +128,3 @@ class User extends Authenticatable
             ->setDescriptionForEvent(fn(string $eventName) => "{$eventName} user");
     }
 }
-

@@ -108,138 +108,130 @@
         />
     </div>
 
-    {{-- Batch Cards Grid --}}
+    {{-- Batch Cards Grid - CLICKABLE CARDS --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 px-2">
-        @forelse($batches as $batch)
-        <div class="bg-white border rounded-2xl p-6 flex flex-col hover:shadow-lg transition-shadow">
-            {{-- Header: Title + Status --}}
-            <div class="mb-3">
-                <h1 class="text-black font-semibold text-xl mb-2">
-                    {{ $batch['title'] }}
-                </h1>
-                <div class="flex items-center gap-2">
-                    <div class="px-3 py-1 text-xs font-semibold rounded-full uppercase {{ badgeStatus($batch['status']) }} inline-block">
-                        {{ $batch['status'] }}
-                    </div>
+    @forelse($batches as $batch)
+    <div @click="viewBatchDetail({{ $batch['id'] }})" 
+         class="bg-white border rounded-2xl p-6 flex flex-col hover:shadow-lg transition-all cursor-pointer group hover:border-[#10AF13]/30">
+        {{-- Header: Title + Status --}}
+        <div class="mb-3">
+            <x-tooltip-text 
+                :text="$batch['title']" 
+                class="text-black font-semibold text-xl mb-2 group-hover:text-[#10AF13] transition"
+                position="top"
+            />
+            <div class="flex items-center gap-2">
+                <div class="px-3 py-1 text-xs font-semibold rounded-full uppercase {{ badgeStatus($batch['status']) }} inline-block">
+                    {{ $batch['status'] }}
                 </div>
             </div>
-
-            {{-- Batch Code --}}
-            <p class="text-gray-600 font-medium text-sm mb-4">
-                {{ $batch['code'] }}
-            </p>
-
-            {{-- Category --}}
-            <div class="px-3 py-1 w-fit mb-4 text-xs font-semibold rounded-lg border border-gray-300">
-                {{ $batch['category'] }}
-            </div>
-
-            {{-- Batch Info --}}
-            <div class="space-y-3 mb-4">
-                {{-- Date --}}
-                <div class="flex gap-3 text-gray-700 items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" 
-                        stroke="currentColor" stroke-width="2" fill="none" class="flex-shrink-0">
-                        <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
-                        <path d="M16 3v4M8 3v4M4 11h16" />
-                    </svg>
-                    <span class="text-sm font-medium">
-                        {{ formatDate($batch['start_date']) }}
-                    </span>
-                </div>
-
-                {{-- Time --}}
-                <div class="flex gap-3 text-gray-700 items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
-                        stroke-width="2" class="flex-shrink-0">
-                        <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
-                        <path d="M12 12h-3.5M12 7v5" />
-                    </svg>
-                    <span class="text-sm font-medium">
-                        {{ \Carbon\Carbon::parse($batch['start_date'])->format('H:i') }} - 
-                        {{ \Carbon\Carbon::parse($batch['end_date'])->format('H:i') }}
-                    </span>
-                </div>
-
-                {{-- Participants --}}
-                <div class="flex gap-3 text-gray-700 items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
-                        stroke-width="2" class="flex-shrink-0">
-                        <path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0 -3 -3.85" />
-                    </svg>
-                    <span class="text-sm font-medium">
-                        {{ $batch['participants_count'] }} / {{ $batch['max_quota'] }} peserta
-                    </span>
-                </div>
-
-                {{-- Trainer --}}
-                <div class="flex gap-3 text-gray-700 items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
-                        stroke-width="2" class="flex-shrink-0">
-                        <path d="M8 19h-3a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v11a1 1 0 0 1 -1 1" />
-                        <path d="M12 14a2 2 0 1 0 4.001 -.001a2 2 0 0 0 -4.001 .001M17 19a2 2 0 0 0 -2 -2h-2a2 2 0 0 0 -2 2" />
-                    </svg>
-                    <span class="text-sm font-medium">{{ $batch['trainer'] }}</span>
-                </div>
-            </div>
-
-            {{-- Action Buttons (Push to bottom) --}}
-            <div class="mt-auto grid grid-cols-2 gap-3">
-                <button @click="editBatch({{ $batch['id'] }})" 
-                        class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
-                    Edit
-                </button>
-                <button @click="deleteBatch({{ $batch['id'] }})" 
-                        class="px-4 py-2.5 border border-red-300 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition">
-                    Hapus
-                </button>
-            </div>
-
-            {{-- Hidden Delete Form --}}
-            <form id="delete-form-{{ $batch['id'] }}" 
-                  action="{{ route('coordinator.batches.destroy', $batch['id']) }}" 
-                  method="POST" class="hidden">
-                @csrf
-                @method('DELETE')
-            </form>
         </div>
-        @empty
-        <div class="col-span-full">
-            <div class="bg-white border rounded-2xl p-12 text-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="1.5" class="mx-auto mb-4 text-gray-300">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+
+        {{-- Batch Code --}}
+        <p class="text-gray-600 font-medium text-sm mb-4">
+            {{ $batch['code'] }}
+        </p>
+
+        {{-- Category --}}
+        <div class="px-3 py-1 w-fit mb-4 text-xs font-semibold rounded-lg border border-gray-300">
+            {{ $batch['category'] }}
+        </div>
+
+        {{-- Batch Info --}}
+        <div class="space-y-3 mb-4">
+            {{-- Date Range --}}
+            <div class="flex gap-3 text-gray-700 items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" 
+                    stroke="currentColor" stroke-width="2" fill="none" class="flex-shrink-0">
+                    <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+                    <path d="M16 3v4M8 3v4M4 11h16" />
                 </svg>
-                <p class="font-medium text-lg text-gray-500">Tidak ada batch ditemukan</p>
-                @if(request()->hasAny(['search', 'status', 'sort']))
-                    <p class="text-sm text-gray-400 mt-1">Coba ubah filter atau pencarian Anda</p>
-                @else
-                    <p class="text-sm text-gray-400 mt-1">Klik tombol "Buat Batch Baru" untuk membuat batch pertama</p>
-                @endif
+                <span class="text-sm font-medium">
+                    {{ $batch['date_range_summary'] }}
+                </span>
+            </div>
+
+            {{-- Duration --}}
+            <div class="flex gap-3 text-gray-700 items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                    stroke-width="2" class="flex-shrink-0">
+                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                    <path d="M12 12h-3.5M12 7v5" />
+                </svg>
+                <span class="text-sm font-medium">
+                    {{ $batch['sessions_count'] }} {{ $batch['sessions_count'] === 1 ? 'Hari' : 'Hari' }}
+                </span>
+            </div>
+
+            {{-- Participants --}}
+            <div class="flex gap-3 text-gray-700 items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                    stroke-width="2" class="flex-shrink-0">
+                    <path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0 -3 -3.85" />
+                </svg>
+                <span class="text-sm font-medium">
+                    {{ $batch['participants_count'] }} / {{ $batch['max_quota'] }} peserta
+                </span>
+            </div>
+
+            {{-- Trainers Summary --}}
+            <div class="flex gap-3 text-gray-700 items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                    stroke-width="2" class="flex-shrink-0">
+                    <path d="M8 19h-3a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v11a1 1 0 0 1 -1 1" />
+                    <path d="M12 14a2 2 0 1 0 4.001 -.001a2 2 0 0 0 -4.001 .001M17 19a2 2 0 0 0 -2 -2h-2a2 2 0 0 0 -2 2" />
+                </svg>
+                <span class="text-sm font-medium">{{ $batch['trainers_summary'] }}</span>
             </div>
         </div>
-        @endforelse
+
+        {{-- Action Buttons (Push to bottom) - STOP CLICK PROPAGATION --}}
+        <div class="mt-auto grid grid-cols-2 gap-3" @click.stop>
+            <button @click="editBatch({{ $batch['id'] }})" 
+                    class="px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+                Edit
+            </button>
+            <button @click="deleteBatch({{ $batch['id'] }})" 
+                    class="px-3 py-2.5 border border-red-300 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition">
+                Hapus
+            </button>
+        </div>
+
+        {{-- Hidden Delete Form --}}
+        <form id="delete-form-{{ $batch['id'] }}" 
+              action="{{ route('coordinator.batches.destroy', $batch['id']) }}" 
+              method="POST" class="hidden">
+            @csrf
+            @method('DELETE')
+        </form>
     </div>
+    @empty
+    <div class="col-span-full">
+        <div class="bg-white border rounded-2xl p-12 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.5" class="mx-auto mb-4 text-gray-300">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+            <p class="font-medium text-lg text-gray-500">Tidak ada batch ditemukan</p>
+            @if(request()->hasAny(['search', 'status', 'sort']))
+                <p class="text-sm text-gray-400 mt-1">Coba ubah filter atau pencarian Anda</p>
+            @else
+                <p class="text-sm text-gray-400 mt-1">Klik tombol "Buat Batch Baru" untuk membuat batch pertama</p>
+            @endif
+        </div>
+    </div>
+    @endforelse
+</div>
 
     {{-- Pagination --}}
-    @if($batches->hasPages())
     <div class="mt-6 px-2">
-        <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-600">
-                Menampilkan <span class="font-medium">{{ $batches->firstItem() }}</span> 
-                sampai <span class="font-medium">{{ $batches->lastItem() }}</span> 
-                dari <span class="font-medium">{{ $batches->total() }}</span> batch
-            </div>
-            <div>
-                {{ $batches->links() }}
-            </div>
-        </div>
+        <x-pagination :paginator="$batches" />
     </div>
-    @endif
 
     {{-- Include Modals --}}
     @include('coordinator.batch-management.batch-create-modal')
+    @include('coordinator.batch-management.batch-detail-modal')
     @include('coordinator.batch-management.batch-edit-modal')
 
     {{-- Modal Delete Confirmation --}}
@@ -278,5 +270,6 @@
 
 </div>
 
+{{-- Include Consolidated Scripts --}}
 @include('coordinator.batch-management.batch-scripts')
 @endsection

@@ -117,21 +117,18 @@ class ParticipantController extends Controller
         $user = Auth::user();
         $branchId = $user->branch_id;
 
-        // Get batch participant with relations
+        // PERBAIKAN: Cari berdasarkan ID batch_participant, bukan user_id
         $participant = BatchParticipant::with([
                 'user.branch',
                 'batch.category',
-                'batch.trainer',
-                'user.attendances' => function($query) use ($participantId) {
-                    $query->where('user_id', $participantId);
-                }
+                'batch.trainer'
             ])
             ->whereHas('user', function($q) use ($branchId) {
                 $q->where('branch_id', $branchId);
             })
             ->findOrFail($participantId);
 
-        // Get attendance status for this participant in this batch
+        // Get attendance status untuk user ini di batch ini
         $attendance = $participant->user->attendances()
             ->where('batch_id', $participant->batch_id)
             ->latest()
@@ -144,6 +141,7 @@ class ParticipantController extends Controller
                 'email' => $participant->user->email,
                 'branch' => $participant->user->branch->name ?? '-',
                 'batch_title' => $participant->batch->title,
+                'batch_code' => $participant->batch->code ?? 'N/A', // TAMBAHKAN INI
                 'batch_start' => $participant->batch->start_date->format('d F Y'),
                 'batch_time' => $participant->batch->start_date->format('H:i') . ' - ' . 
                                $participant->batch->end_date->format('H:i'),

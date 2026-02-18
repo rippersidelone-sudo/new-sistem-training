@@ -325,37 +325,173 @@
                                     @endif
                                 </div>
 
-                                {{-- Tab: Jadwal Pelatihan --}}
+                                {{-- Tab: Jadwal Pelatihan (VERSI BARU & LENGKAP) --}}
                                 <div x-show="tab === 'jadwal-pelatihan'">
-                                    <div class="mt-5 space-y-4">
-                                        <div class="p-4 border rounded-xl hover:bg-gray-50 transition">
-                                            <h3 class="text-lg font-medium text-black">Sesi Pelatihan</h3>
-                                            <div class="flex gap-2 mt-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="text-gray-700" width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                    <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
-                                                    <path d="M16 3v4" />
-                                                    <path d="M8 3v4" />
-                                                    <path d="M4 11h16" />
-                                                </svg>
-                                                <p class="text-md text-gray-700 font-medium">{{ formatDate($batch->start_date) }} - {{ formatDate($batch->end_date) }}</p>
+                                    @if($batch->sessions->isEmpty())
+                                        {{-- Fallback untuk batch lama yang belum punya data sessions --}}
+                                        <div class="mt-5 space-y-4">
+                                            <div class="p-5 border rounded-xl bg-gray-50">
+                                                <div class="flex items-start gap-3 mb-4">
+                                                    <div class="p-2 bg-[#10AF13]/10 rounded-lg">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-[#10AF13]">
+                                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                                            <line x1="16" y1="2" x2="16" y2="6"/>
+                                                            <line x1="8" y1="2" x2="8" y2="6"/>
+                                                            <line x1="3" y1="10" x2="21" y2="10"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <h3 class="text-lg font-semibold text-black">Sesi Pelatihan</h3>
+                                                        <p class="text-sm text-gray-600">{{ formatDate($batch->start_date) }} - {{ formatDate($batch->end_date) }}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="space-y-3">
+                                                    <div class="flex items-center gap-3 text-gray-700">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                                            <path d="M12 12h-3.5M12 7v5" />
+                                                        </svg>
+                                                        <p class="text-sm font-medium">
+                                                            {{ $batch->start_date->format('H:i') }} - {{ $batch->end_date->format('H:i') }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div class="flex items-center gap-3 text-gray-700">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M8 19h-3a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v11a1 1 0 0 1 -1 1" />
+                                                            <path d="M12 14a2 2 0 1 0 4.001 -.001a2 2 0 0 0 -4.001 .001M17 19a2 2 0 0 0 -2 -2h-2a2 2 0 0 0 -2 2" />
+                                                        </svg>
+                                                        <p class="text-sm font-medium">{{ $batch->trainer->name }}</p>
+                                                    </div>
+
+                                                    @if($batch->zoom_link)
+                                                        <div class="mt-4 pt-4 border-t">
+                                                            <a href="{{ $batch->zoom_link }}" target="_blank" 
+                                                               class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0059FF] text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                    <path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z" />
+                                                                    <path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" />
+                                                                </svg>
+                                                                Join Zoom Meeting
+                                                            </a>
+                                                        </div>
+                                                    @endif
+                                                </div>
                                             </div>
-                                            <div class="flex gap-2 mt-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
-                                                    <path d="M12 12h-3.5" />
-                                                    <path d="M12 7v5" />
-                                                </svg>
-                                                <p class="text-md text-gray-700 font-medium">{{ $batch->start_date->format('H:i') }} - {{ $batch->end_date->format('H:i') }}</p>
-                                            </div>
-                                            @if($batch->zoom_link)
-                                            <div class="text-md font-medium text-[#0059FF] mt-2">
-                                                <a href="{{ $batch->zoom_link }}" target="_blank" class="inline-block hover:underline">Join Zoom Meeting</a>
-                                            </div>
-                                            @endif
                                         </div>
-                                    </div>
+                                    @else
+                                        {{-- Menampilkan daftar session (multi sesi) --}}
+                                        <div class="mt-5 space-y-4">
+                                            @foreach($batch->sessions->sortBy('session_number') as $session)
+                                                <div class="p-5 border rounded-xl hover:bg-gray-50 transition 
+                                                    {{ $session->isToday() ? 'border-[#10AF13] bg-[#10AF13]/5' : '' }} 
+                                                    {{ $session->hasEnded() ? 'opacity-75' : '' }}">
+                                                    
+                                                    {{-- Header sesi --}}
+                                                    <div class="flex items-start justify-between mb-4">
+                                                        <div class="flex items-start gap-3">
+                                                            <div class="p-2 {{ $session->isToday() ? 'bg-[#10AF13] text-white' : 'bg-gray-200 text-gray-700' }} rounded-lg font-bold text-sm min-w-[70px] text-center">
+                                                                Hari {{ $session->session_number }}
+                                                            </div>
+                                                            <div>
+                                                                <h3 class="text-lg font-semibold text-black">
+                                                                    @if($session->title)
+                                                                        {{ $session->title }}
+                                                                    @else
+                                                                        Sesi {{ $session->session_number }}
+                                                                    @endif
+                                                                </h3>
+                                                                <p class="text-sm text-gray-600 font-medium mt-1">
+                                                                    {{ formatDate($session->start_datetime, 'l, d M Y') }}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        @if($session->isToday())
+                                                            <span class="px-3 py-1 bg-[#10AF13] text-white text-xs font-semibold rounded-full animate-pulse">
+                                                                HARI INI
+                                                            </span>
+                                                        @elseif($session->hasEnded())
+                                                            <span class="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">
+                                                                SELESAI
+                                                            </span>
+                                                        @elseif($session->hasStarted())
+                                                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                                                ONGOING
+                                                            </span>
+                                                        @else
+                                                            <span class="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">
+                                                                AKAN DATANG
+                                                            </span>
+                                                        @endif
+                                                    </div>
+
+                                                    {{-- Detail sesi --}}
+                                                    <div class="space-y-3 ml-11 md:ml-0 md:pl-20">
+                                                        <div class="flex items-center gap-3 text-gray-700">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                                                <path d="M12 12h-3.5M12 7v5" />
+                                                            </svg>
+                                                            <p class="text-sm font-medium">
+                                                                {{ $session->start_datetime->format('H:i') }} - {{ $session->end_datetime->format('H:i') }}
+                                                                <span class="text-gray-500 ml-1">({{ $session->getDurationInHours() }} jam)</span>
+                                                            </p>
+                                                        </div>
+
+                                                        <div class="flex items-center gap-3 text-gray-700">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <path d="M8 19h-3a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v11a1 1 0 0 1 -1 1" />
+                                                                <path d="M12 14a2 2 0 1 0 4.001 -.001a2 2 0 0 0 -4.001 .001M17 19a2 2 0 0 0 -2 -2h-2a2 2 0 0 0 -2 2" />
+                                                            </svg>
+                                                            <p class="text-sm font-medium">{{ $session->trainer->name }}</p>
+                                                        </div>
+
+                                                        @if($session->zoom_link || $batch->zoom_link)
+                                                            <div class="mt-4 pt-3 border-t">
+                                                                <a href="{{ $session->zoom_link ?? $batch->zoom_link }}" target="_blank"
+                                                                   class="inline-flex items-center gap-2 px-4 py-2.5 
+                                                                   {{ $session->isToday() ? 'bg-[#10AF13] hover:bg-[#0e8e0f]' : 'bg-[#0059FF] hover:bg-blue-700' }} 
+                                                                   text-white rounded-lg transition font-medium text-sm">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                        <path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z" />
+                                                                        <path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" />
+                                                                    </svg>
+                                                                    Join Zoom Meeting
+                                                                </a>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+
+                                            {{-- Ringkasan di bawah --}}
+                                            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                                <div class="flex items-start gap-3">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-blue-600 flex-shrink-0 mt-0.5">
+                                                        <circle cx="12" cy="12" r="10"/>
+                                                        <path d="M12 16v-4"/>
+                                                        <path d="M12 8h.01"/>
+                                                    </svg>
+                                                    <div class="text-sm">
+                                                        <p class="font-semibold text-blue-900">
+                                                            Total {{ $batch->sessions->count() }} Hari Pelatihan
+                                                        </p>
+                                                        <p class="text-blue-700 mt-1">
+                                                            Durasi: {{ $batch->getTotalDurationInHours() }} jam total
+                                                        </p>
+                                                        @if($batch->getAllTrainers()->count() > 1)
+                                                            <p class="text-blue-700">
+                                                                {{ $batch->getAllTrainers()->count() }} Trainer: 
+                                                                {{ $batch->getAllTrainers()->pluck('name')->join(', ') }}
+                                                            </p>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>

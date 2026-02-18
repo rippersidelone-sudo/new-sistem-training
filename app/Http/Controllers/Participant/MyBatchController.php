@@ -23,6 +23,7 @@ class MyBatchController extends Controller
                 'category',
                 'trainer',
                 'materials',
+                'sessions.trainer', // ✅ TAMBAHKAN INI
                 'tasks' => function($query) {
                     $query->orderBy('deadline', 'desc');
                 }
@@ -73,6 +74,7 @@ class MyBatchController extends Controller
         $batch->load([
             'category',
             'trainer',
+            'sessions.trainer', // ✅ TAMBAHKAN INI
             'materials' => function($query) {
                 $query->orderBy('created_at', 'desc');
             },
@@ -112,29 +114,13 @@ class MyBatchController extends Controller
         $registrationStatus = $registration->pivot->status;
         $registeredAt = $registration->pivot->created_at;
 
-        // Schedule/Sessions (if you have a sessions table, otherwise use batch dates)
-        // For now, using sample data structure from your view
-        $sessions = [
-            [
-                'title' => 'Pengenalan ' . $batch->category->name,
-                'date' => $batch->start_date->format('d/m/Y'),
-                'time' => '09:00 - 12:00',
-            ],
-            [
-                'title' => 'Praktik & Workshop',
-                'date' => $batch->start_date->format('d/m/Y'),
-                'time' => '13:00 - 15:00',
-            ],
-        ];
-
         return view('participant.pelatihan', compact(
             'batch',
             'registrationStatus',
             'registeredAt',
             'attendanceStatus',
             'attendanceRecords',
-            'taskSubmissions',
-            'sessions'
+            'taskSubmissions'
         ));
     }
 }

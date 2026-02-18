@@ -1,29 +1,55 @@
 {{-- resources/views/layouts/admin.blade.php --}}
 @extends('layouts.app')
 
+@push('styles')
+{{-- ✅ CRITICAL FIX: Prevent FOUC (Flash of Unstyled Content) --}}
+<style>
+    [x-cloak] { display: none !important; }
+
+    @media (min-width: 1024px) {
+        .sidebar-container { transform: translateX(0) !important; }
+    }
+
+    @media (max-width: 1023px) {
+        .sidebar-container:not(.mobile-open) { transform: translateX(-100%) !important; }
+    }
+
+    .sidebar-container {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+</style>
+@endpush
+
 @section('sidebar')
-<div x-data="{ open: false }" x-cloak>
-    
+{{-- ✅ FIXED: Proper Alpine initialization to prevent layout shift --}}
+<div x-data="sidebarController()"
+     x-init="init()"
+     @keydown.escape.window="closeSidebar()">
+
     {{-- Mobile Overlay --}}
-    <div x-show="open" 
-         @click="open = false"
-         x-transition
+    <div x-show="open"
+         x-cloak
+         @click="closeSidebar()"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
          class="fixed inset-0 bg-black/50 z-40 lg:hidden">
     </div>
 
     {{-- Sidebar --}}
-    <div :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-         class="sidebar-container w-64 h-screen bg-[#10AF13] fixed top-0 left-0 flex flex-col justify-between p-4 z-50 transition-transform duration-300 lg:z-auto">
-        
+    <div :class="{ 'mobile-open': open }"
+         class="sidebar-container w-64 h-screen bg-[#10AF13] fixed top-0 left-0 flex flex-col justify-between p-4 z-50 lg:translate-x-0">
+
         {{-- USER HEADER --}}
         <div>
             <div class="flex items-center space-x-3 mt-4">
-                {{-- Inisial --}}
                 <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg">
                     {{ Auth::user()->initials ?? strtoupper(substr(Auth::user()->name ?? '', 0, 1)) }}
                 </div>
 
-                {{-- Nama & Role --}}
                 <div class="flex-1 min-w-0">
                     <h1 class="text-xl font-bold whitespace-normal text-black">
                         {{ Auth::user()->name }}
@@ -33,8 +59,7 @@
                     </p>
                 </div>
 
-                {{-- Close Mobile --}}
-                <button @click="open = false" class="lg:hidden text-black">
+                <button @click="closeSidebar()" class="lg:hidden text-black hover:bg-white/20 rounded-lg p-1 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6l-12 12M6 6l12 12" />
                     </svg>
@@ -45,8 +70,9 @@
 
             {{-- MENU LIST --}}
             <nav class="mt-8 space-y-2">
-                {{-- Dashboard --}}
-                <a href="{{ route('admin.dashboard') }}" 
+
+                <a href="{{ route('admin.dashboard') }}"
+                   @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('admin.dashboard') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -59,8 +85,8 @@
                     <span>Master Dashboard</span>
                 </a>
 
-                {{-- Batch Oversight --}}
-                <a href="{{ route('admin.batch-oversight.index') }}" 
+                <a href="{{ route('admin.batch-oversight.index') }}"
+                   @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('admin.batch-oversight.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -69,8 +95,8 @@
                     <span>Batch Oversight</span>
                 </a>
 
-                {{-- Role & Permission --}}
-                <a href="{{ route('admin.users.index') }}" 
+                <a href="{{ route('admin.users.index') }}"
+                   @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs(['admin.users.*', 'admin.roles.*']) ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -80,8 +106,8 @@
                     <span>Role & Permission</span>
                 </a>
 
-                {{-- Global Report --}}
-                <a href="{{ route('admin.reports.index') }}" 
+                <a href="{{ route('admin.reports.index') }}"
+                   @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('admin.reports.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -94,8 +120,8 @@
                     <span>Global Report</span>
                 </a>
 
-                {{-- Audit Log --}}
-                <a href="{{ route('admin.audit.index') }}" 
+                <a href="{{ route('admin.audit.index') }}"
+                   @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('admin.audit.*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -111,11 +137,12 @@
                     <span>Audit Log</span>
                 </a>
 
-                {{-- Settings --}}
-                <a href="{{ route('settings') }}" 
+                <a href="{{ route('settings') }}"
+                   @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('settings') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
                         <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
@@ -146,7 +173,8 @@
     </div>
 
     {{-- Mobile Menu Button --}}
-    <button @click="open = true" class="fixed bottom-6 right-6 z-30 lg:hidden w-14 h-14 bg-[#10AF13] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#0e8e0f] transition-colors">
+    <button @click="openSidebar()"
+            class="fixed bottom-6 right-6 z-30 lg:hidden w-14 h-14 bg-[#10AF13] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#0e8e0f] transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="12" x2="21" y2="12" />
             <line x1="3" y1="6" x2="21" y2="6" />
@@ -155,24 +183,180 @@
     </button>
 </div>
 
-{{-- SCRIPT UNTUK RESTORE SCROLL POSITION --}}
+{{-- ✅ GLOBAL TOAST CONTAINER (OUTSIDE SIDEBAR) --}}
+<div
+    x-data="toastHub()"
+    x-init="init()"
+    class="fixed bottom-6 right-6 z-[9999] w-full max-w-sm space-y-3 pointer-events-none"
+>
+    <template x-for="t in toasts" :key="t.id">
+        <div
+            x-show="t.show"
+            x-transition:enter="transition ease-out duration-250"
+            x-transition:enter-start="opacity-0 translate-y-2"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-2"
+            class="pointer-events-auto"
+        >
+            <div
+                class="flex items-start gap-3 px-4 py-3 rounded-xl shadow-2xl border border-white/20"
+                :class="t.type === 'success' ? 'bg-[#10AF13] text-white' : 'bg-red-600 text-white'"
+            >
+                <div class="mt-0.5">
+                    <template x-if="t.type === 'success'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                    </template>
+                    <template x-if="t.type !== 'success'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6 6 18" /><path d="M6 6l12 12" />
+                        </svg>
+                    </template>
+                </div>
+
+                <div class="flex-1">
+                    <p class="text-sm font-semibold" x-text="t.title"></p>
+                    <p class="text-sm opacity-95 mt-0.5 leading-snug" x-text="t.message"></p>
+                </div>
+
+                <button type="button"
+                        @click="remove(t.id)"
+                        class="opacity-80 hover:opacity-100 transition"
+                        title="Tutup">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18" /><path d="M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </template>
+</div>
+
 @push('scripts')
 <script>
-// Restore scroll position setelah page load (untuk filter)
+// Sidebar controller
+function sidebarController() {
+    return {
+        open: false,
+
+        init() {
+            this.open = false;
+            this.$nextTick(() => { this.open = false; });
+        },
+
+        openSidebar() {
+            this.open = true;
+            document.body.style.overflow = 'hidden';
+        },
+
+        closeSidebar() {
+            this.open = false;
+            document.body.style.overflow = '';
+        },
+
+        handleNavigation() {
+            if (window.innerWidth < 1024) {
+                this.closeSidebar();
+            }
+        }
+    }
+}
+
+// Prevent Alpine from opening dropdowns on load
+document.addEventListener('alpine:init', () => {
+    setTimeout(() => {
+        document.querySelectorAll('[x-data]').forEach(el => {
+            if (el.__x && el.__x.$data) {
+                if (typeof el.__x.$data.open !== 'undefined') {
+                    el.__x.$data.open = false;
+                }
+            }
+        });
+    }, 50);
+});
+
+// Restore scroll position after filter
 document.addEventListener('DOMContentLoaded', function() {
-    const scrollPos = sessionStorage.getItem('filterScrollPosition');
+    const scrollPos = sessionStorage.getItem('scrollPosition');
     if (scrollPos) {
-        // Tunggu sebentar agar halaman fully rendered
         setTimeout(() => {
-            window.scrollTo({
-                top: parseInt(scrollPos),
-                behavior: 'instant' // Langsung tanpa animasi
-            });
-            // Hapus setelah digunakan
-            sessionStorage.removeItem('filterScrollPosition');
+            window.scrollTo({ top: parseInt(scrollPos), behavior: 'instant' });
+            sessionStorage.removeItem('scrollPosition');
         }, 100);
     }
 });
+
+// ============================================================
+// TOAST HUB (GLOBAL)
+// ============================================================
+function toastHub() {
+    return {
+        toasts: [],
+        _id: 1,
+
+        init() {
+            window.toast = (options = {}) => {
+                const type = options.type || 'success';
+                const title = options.title || (type === 'success' ? 'Berhasil' : 'Gagal');
+                const message = options.message || '';
+                const timeout = Number(options.timeout ?? 3500);
+
+                const id = this._id++;
+                this.toasts.push({ id, type, title, message, show: true });
+
+                if (timeout > 0) {
+                    setTimeout(() => this.remove(id), timeout);
+                }
+            };
+        },
+
+        remove(id) {
+            const idx = this.toasts.findIndex(t => t.id === id);
+            if (idx === -1) return;
+
+            this.toasts[idx].show = false;
+
+            setTimeout(() => {
+                this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 220);
+        }
+    }
+}
 </script>
+
+{{-- ✅ AUTO TOAST FROM SESSION --}}
+@if(session('success'))
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    window.toast({ type: 'success', title: 'Berhasil', message: @js(session('success')) });
+});
+</script>
+@endif
+
+@if(session('error'))
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    window.toast({ type: 'error', title: 'Gagal', message: @js(session('error')) });
+});
+</script>
+@endif
+
+@if($errors->any())
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    window.toast({
+        type: 'error',
+        title: 'Validasi Gagal',
+        message: @js($errors->first())
+    });
+});
+</script>
+@endif
 @endpush
 @endsection
