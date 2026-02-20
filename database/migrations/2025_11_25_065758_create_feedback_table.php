@@ -1,5 +1,4 @@
 <?php
-// 2025_11_25_065758_create_feedback_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -17,16 +16,13 @@ return new class extends Migration
             $table->text('message')->nullable();
             $table->unsignedTinyInteger('rating')->default(0);
             $table->timestamps();
-            
-            // User can only give feedback once per batch
+
             $table->unique(['batch_id', 'user_id'], 'feedback_unique');
-            
-            $table->index('batch_id');
-            $table->index('user_id');
-            $table->index('rating');
+            $table->index(['batch_id', 'rating'], 'idx_feedback_batch_rating');
+            $table->index('rating', 'idx_feedback_rating');
+            $table->index('created_at', 'idx_feedback_created');
         });
 
-        // Add check constraint using raw SQL
         DB::statement('ALTER TABLE feedback ADD CONSTRAINT rating_check CHECK (rating >= 0 AND rating <= 5)');
     }
 

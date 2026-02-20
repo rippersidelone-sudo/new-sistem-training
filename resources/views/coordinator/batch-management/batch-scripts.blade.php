@@ -1,13 +1,61 @@
+{{-- resources/views/coordinator/batch-management/batch-scripts.blade.php --}}
 <script>
+// ============================================================
+// MAIN BATCH MANAGEMENT COMPONENT
+// ============================================================
 function batchManagement() {
     return {
+        // Modal States
         openAddBatch: false,
         openEditBatch: false,
+        openDetailBatch: false,
         openDeleteConfirm: false,
-        currentBatchId: null,
-        tasks: [],
-        editTasks: [],
         
+        // Current IDs
+        currentBatchId: null,
+        editBatchId: null,
+        detailBatchId: null,
+        
+        // Edit Form States
+        editLoading: false,
+        editError: false,
+        editCategoryOpen: false,
+        editTrainerOpen: false,
+        editCategories: [],
+        editTrainers: [],
+        editFormData: {
+            title: '',
+            category_id: '',
+            category_name: '',
+            trainer_id: '',
+            trainer_name: '',
+            min_quota: '',
+            max_quota: '',
+            zoom_link: '',
+            status: 'Scheduled',
+            sessions: []
+        },
+        
+        // Detail Modal States
+        detailLoading: false,
+        detailError: false,
+        detailData: {
+            id: null,
+            code: '',
+            title: '',
+            category: '',
+            status: '',
+            participants_count: 0,
+            max_quota: 0,
+            min_quota: 0,
+            zoom_link: '',
+            sessions_count: 0,
+            sessions: []
+        },
+        
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
         init() {
             console.log('Batch Management initialized');
             
@@ -17,38 +65,101 @@ function batchManagement() {
             @endif
         },
         
-        addTask() {
-            this.tasks.push({
-                title: '',
-                description: '',
-                deadline: ''
+        // ============================================================
+        // VIEW BATCH DETAIL
+        // ============================================================
+        viewBatchDetail(batchId) {
+            console.log('View batch detail:', batchId);
+            
+            this.detailBatchId = batchId;
+            this.detailLoading = true;
+            this.detailError = false;
+            this.openDetailBatch = true;
+            
+            // Fetch batch detail
+            fetch(`{{ url('coordinator/batches') }}/${batchId}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                const batch = data.batch;
+                
+                // Format sessions with duration calculation
+                const formattedSessions = data.sessions.map(session => {
+                    const durationMinutes = session.duration_minutes;
+                    const durationHours = Math.floor(durationMinutes / 60);
+                    const durationRemainingMinutes = durationMinutes % 60;
+                    
+                    let durationText = '';
+                    if (durationHours > 0) {
+                        durationText = `${durationHours} jam`;
+                        if (durationRemainingMinutes > 0) {
+                            durationText += ` ${durationRemainingMinutes} menit`;
+                        }
+                    } else {
+                        durationText = `${durationRemainingMinutes} menit`;
+                    }
+                    
+                    return {
+                        id: session.id,
+                        session_number: session.session_number,
+                        title: session.title,
+                        trainer_name: session.trainer_name,
+                        start_date: session.start_date,
+                        end_date: session.end_date,
+                        start_time: session.start_time,
+                        end_time: session.end_time,
+                        zoom_link: session.zoom_link,
+                        notes: session.notes || '',
+                        formatted_date: session.formatted_date,
+                        duration_text: durationText
+                    };
+                });
+                
+                this.detailData = {
+                    id: batch.id,
+                    code: batch.code,
+                    title: batch.title,
+                    category: batch.category_name,
+                    status: batch.status,
+                    participants_count: batch.participants_count || 0,
+                    max_quota: batch.max_quota,
+                    min_quota: batch.min_quota,
+                    zoom_link: batch.zoom_link,
+                    sessions_count: formattedSessions.length,
+                    sessions: formattedSessions
+                };
+                
+                this.detailLoading = false;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.detailLoading = false;
+                this.detailError = true;
             });
         },
         
-        removeTask(index) {
-            this.tasks.splice(index, 1);
-        },
-        
-        resetTasks() {
-            this.tasks = [];
-        },
-        
-        addEditTask() {
-            this.editTasks.push({
-                id: null,
-                title: '',
-                description: '',
-                deadline: '',
-                is_active: true
-            });
-        },
-        
-        removeEditTask(index) {
-            this.editTasks.splice(index, 1);
-        },
-        
+        // ============================================================
+        // EDIT BATCH
+        // ============================================================
         editBatch(batchId) {
             console.log('Edit batch clicked:', batchId);
+            
+            // Close detail modal if open
+            this.openDetailBatch = false;
+            
+            // Reset states
+            this.editBatchId = batchId;
+            this.editLoading = true;
+            this.editError = false;
+            this.editCategoryOpen = false;
+            this.editTrainerOpen = false;
             
             // Open modal
             this.openEditBatch = true;
@@ -68,306 +179,51 @@ function batchManagement() {
             })
             .then(data => {
                 const batch = data.batch;
-                const categories = data.categories;
-                const trainers = data.trainers;
-                const tasks = data.tasks || [];
+                this.editCategories = data.categories;
+                this.editTrainers = data.trainers;
                 
-                // Populate Alpine tasks data
-                this.editTasks = tasks;
+                // Find category and trainer names
+                const category = data.categories.find(c => c.id === batch.category_id);
+                const trainer = data.trainers.find(t => t.id === batch.trainer_id);
                 
-                // Build form HTML
-                const formHtml = this.buildEditForm(batch, categories, trainers);
+                // Populate form data
+                this.editFormData = {
+                    title: batch.title,
+                    category_id: batch.category_id,
+                    category_name: category?.name || '',
+                    trainer_id: batch.trainer_id,
+                    trainer_name: trainer?.name || '',
+                    min_quota: batch.min_quota,
+                    max_quota: batch.max_quota,
+                    zoom_link: batch.zoom_link,
+                    status: batch.status,
+                    sessions: data.sessions || []
+                };
                 
-                document.getElementById('edit-batch-form-container').innerHTML = formHtml;
+                this.editLoading = false;
             })
             .catch(error => {
                 console.error('Error:', error);
-                document.getElementById('edit-batch-form-container').innerHTML = `
-                    <div class="text-center py-8">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mx-auto mb-3 text-red-500">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <p class="text-red-500 font-medium">Gagal memuat data batch</p>
-                        <p class="text-gray-500 text-sm mt-1">Silakan coba lagi</p>
-                    </div>
-                `;
+                this.editLoading = false;
+                this.editError = true;
             });
         },
         
-        buildEditForm(batch, categories, trainers) {
-            return `
-                <form method="POST" action="{{ url('coordinator/batches') }}/${batch.id}">
-                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="_method" value="PUT">
-                    
-                    <div class="space-y-5">
-                        
-                        <div>
-                            <h3 class="text-md font-semibold text-gray-900 mb-4">Informasi Dasar</h3>
-                            
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Judul Batch <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="text" 
-                                           name="title" 
-                                           value="${this.escapeHtml(batch.title)}"
-                                           class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition" 
-                                           required>
-                                </div>
-
-                                <div class="grid sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Kategori Pelatihan <span class="text-red-500">*</span>
-                                        </label>
-                                        <select name="category_id" 
-                                                class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition cursor-pointer"
-                                                required>
-                                            ${categories.map(cat => `
-                                                <option value="${cat.id}" ${cat.id === batch.category_id ? 'selected' : ''}>
-                                                    ${this.escapeHtml(cat.name)}
-                                                </option>
-                                            `).join('')}
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Trainer <span class="text-red-500">*</span>
-                                        </label>
-                                        <select name="trainer_id" 
-                                                class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition cursor-pointer"
-                                                required>
-                                            ${trainers.map(trainer => `
-                                                <option value="${trainer.id}" ${trainer.id === batch.trainer_id ? 'selected' : ''}>
-                                                    ${this.escapeHtml(trainer.name)}
-                                                </option>
-                                            `).join('')}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="border-t pt-5"></div>
-
-                        <div>
-                            <h3 class="text-md font-semibold text-gray-900 mb-4">Jadwal</h3>
-                            
-                            <div class="space-y-4">
-                                <div class="grid sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Tanggal Mulai <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="date" 
-                                               name="start_date" 
-                                               value="${batch.start_date}"
-                                               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition"
-                                               required>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Tanggal Selesai <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="date" 
-                                               name="end_date" 
-                                               value="${batch.end_date}"
-                                               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition"
-                                               required>
-                                    </div>
-                                </div>
-
-                                <div class="grid sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Waktu Mulai <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="time" 
-                                               name="start_time" 
-                                               value="${batch.start_time}"
-                                               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition"
-                                               required>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Waktu Selesai <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="time" 
-                                               name="end_time" 
-                                               value="${batch.end_time}"
-                                               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition"
-                                               required>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="border-t pt-5"></div>
-
-                        <div>
-                            <h3 class="text-md font-semibold text-gray-900 mb-4">Jumlah Peserta dan Link Zoom</h3>
-                            
-                            <div class="space-y-4">
-                                <div class="grid sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Min Peserta <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="number" 
-                                               name="min_quota" 
-                                               value="${batch.min_quota}"
-                                               min="0"
-                                               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition"
-                                               required>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                            Max Peserta <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="number" 
-                                               name="max_quota" 
-                                               value="${batch.max_quota}"
-                                               min="1"
-                                               class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition"
-                                               required>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Zoom Link <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="url" 
-                                           name="zoom_link" 
-                                           value="${this.escapeHtml(batch.zoom_link)}"
-                                           class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition" 
-                                           placeholder="https://zoom.us/j/..."
-                                           required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="border-t pt-5"></div>
-
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                Status Batch <span class="text-red-500">*</span>
-                            </label>
-                            <select name="status" 
-                                    class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition cursor-pointer"
-                                    required>
-                                <option value="Scheduled" ${batch.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option>
-                                <option value="Ongoing" ${batch.status === 'Ongoing' ? 'selected' : ''}>Ongoing</option>
-                                <option value="Completed" ${batch.status === 'Completed' ? 'selected' : ''}>Completed</option>
-                            </select>
-                        </div>
-
-                        <div class="border-t pt-5"></div>
-
-                        <div>
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-md font-semibold text-gray-900">Tugas (Opsional)</h3>
-                                <button type="button" 
-                                        @click="addEditTask()" 
-                                        class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                        <path d="M12 5l0 14" />
-                                        <path d="M5 12l14 0" />
-                                    </svg>
-                                    <span class="text-sm">Tambah Tugas</span>
-                                </button>
-                            </div>
-
-                            <div class="space-y-4">
-                                <template x-for="(task, index) in editTasks" :key="index">
-                                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                        <div class="flex justify-between items-center mb-3">
-                                            <h4 class="text-sm font-semibold text-gray-900">
-                                                Tugas <span x-text="(index + 1)"></span>
-                                            </h4>
-                                            <button type="button"
-                                                    @click="removeEditTask(index)" 
-                                                    class="text-red-600 text-sm font-medium hover:text-red-700 transition">
-                                                Hapus
-                                            </button>
-                                        </div>
-                                        
-                                        <div class="space-y-3">
-                                            <input type="hidden" :name="'tasks[' + index + '][id]'" x-model="task.id">
-                                            
-                                            <div>
-                                                <label class="block text-sm font-semibold text-gray-700 mb-2">Judul Tugas</label>
-                                                <input type="text" 
-                                                       :name="'tasks[' + index + '][title]'"
-                                                       x-model="task.title"
-                                                       class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition" 
-                                                       placeholder="Judul tugas">
-                                            </div>
-                                            
-                                            <div>
-                                                <label class="block text-sm font-semibold text-gray-700 mb-2">Deskripsi Tugas</label>
-                                                <textarea :name="'tasks[' + index + '][description]'"
-                                                          x-model="task.description"
-                                                          class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition resize-none" 
-                                                          rows="4" 
-                                                          placeholder="Berikan deskripsi tugas..."></textarea>
-                                            </div>
-                                            
-                                            <div>
-                                                <label class="block text-sm font-semibold text-gray-700 mb-2">Deadline</label>
-                                                <input type="date" 
-                                                       :name="'tasks[' + index + '][deadline]'"
-                                                       x-model="task.deadline"
-                                                       class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#10AF13] focus:ring-2 focus:ring-[#10AF13]/30 transition">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-8 flex justify-end gap-4 pt-6 border-t">
-                        <button type="button"
-                                @click="openEditBatch = false"
-                                class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
-                            Batal
-                        </button>
-                        <button type="submit"
-                                class="px-6 py-3 bg-[#10AF13] text-white rounded-lg hover:bg-[#0e8e0f] transition font-medium shadow-lg shadow-[#10AF13]/30">
-                            <span class="flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M5 12l5 5l10 -10" />
-                                </svg>
-                                Simpan Perubahan
-                            </span>
-                        </button>
-                    </div>
-                </form>
-            `;
+        selectEditCategory(id, name) {
+            this.editFormData.category_id = id;
+            this.editFormData.category_name = name;
+            this.editCategoryOpen = false;
         },
         
-        escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return String(text).replace(/[&<>"']/g, m => map[m]);
+        selectEditTrainer(id, name) {
+            this.editFormData.trainer_id = id;
+            this.editFormData.trainer_name = name;
+            this.editTrainerOpen = false;
         },
         
+        // ============================================================
+        // DELETE BATCH
+        // ============================================================
         deleteBatch(batchId) {
             this.currentBatchId = batchId;
             this.openDeleteConfirm = true;
@@ -375,7 +231,255 @@ function batchManagement() {
         
         confirmDelete() {
             document.getElementById('delete-form-' + this.currentBatchId).submit();
+        },
+        
+        // ============================================================
+        // HELPER METHODS
+        // ============================================================
+        resetTasks() {
+            // Reset function if needed for create modal
+        },
+        
+        formatEditSessionDate(dateString) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            
+            const date = new Date(dateString);
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            
+            return `${dayName}, ${day} ${month} ${year}`;
+        },
+        
+        formatDate(dateString) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            
+            const date = new Date(dateString);
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            
+            return `${dayName}, ${day} ${month} ${year}`;
+        },
+        
+        formatBatchCode(id) {
+            const year = new Date().getFullYear();
+            return `BATCH-${year}-${String(id).padStart(4, '0')}`;
         }
     };
+}
+
+// ============================================================
+// BATCH CREATE FORM COMPONENT
+// ============================================================
+function batchCreateForm() {
+    return {
+        // Category & Trainer
+        categoryOpen: false,
+        trainerOpen: false,
+        selectedCategory: '{{ old('category_id') }}',
+        selectedCategoryName: '',
+        selectedTrainer: '{{ old('trainer_id') }}',
+        selectedTrainerName: '',
+        
+        // Batch Dates
+        batchStartDate: '',
+        batchEndDate: '',
+        
+        // Sessions (auto-generated dari date range)
+        sessions: [],
+        
+        // ✅ FIX: Store trainers data as array of objects
+        availableTrainers: @json($trainers->map(fn($t) => ['id' => $t->id, 'name' => $t->name])),
+        
+        selectCategory(id, name) {
+            this.selectedCategory = id;
+            this.selectedCategoryName = name;
+            this.categoryOpen = false;
+        },
+        
+        selectTrainer(id, name) {
+            this.selectedTrainer = id;
+            this.selectedTrainerName = name;
+            this.trainerOpen = false;
+            
+            // Auto-fill trainer untuk semua sessions
+            this.sessions.forEach(session => {
+                if (!session.trainer_id) {
+                    session.trainer_id = id;
+                }
+            });
+        },
+        
+        generateSessions() {
+            if (!this.batchStartDate || !this.batchEndDate) {
+                this.sessions = [];
+                return;
+            }
+            
+            const start = new Date(this.batchStartDate);
+            const end = new Date(this.batchEndDate);
+            
+            // Validate
+            if (end < start) {
+                alert('Tanggal selesai harus setelah tanggal mulai');
+                this.batchEndDate = '';
+                this.sessions = [];
+                return;
+            }
+            
+            // Generate sessions untuk setiap hari
+            const newSessions = [];
+            const currentDate = new Date(start);
+            let sessionNumber = 1;
+            
+            while (currentDate <= end) {
+                newSessions.push({
+                    id: Date.now() + sessionNumber,
+                    session_number: sessionNumber,
+                    date: this.formatDateForInput(currentDate),
+                    title: '',
+                    trainer_id: this.selectedTrainer || '',
+                    start_time: '09:00',
+                    end_time: '16:00',
+                    zoom_link: ''
+                });
+                
+                currentDate.setDate(currentDate.getDate() + 1);
+                sessionNumber++;
+            }
+            
+            this.sessions = newSessions;
+        },
+        
+        formatDateForInput(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        },
+        
+        formatDate(dateString) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            
+            const date = new Date(dateString);
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            
+            return `${dayName}, ${day} ${month} ${year}`;
+        },
+        
+        // ✅ FIX: Method untuk get trainer name by ID
+        getTrainerName(id) {
+            if (!id) return 'Pilih Trainer untuk Hari Ini';
+            const trainer = this.availableTrainers.find(t => t.id == id);
+            return trainer ? trainer.name : 'Pilih Trainer untuk Hari Ini';
+        }
+    }
+}
+
+// ============================================================
+// SESSION TRAINER DROPDOWN COMPONENT (for nested use in sessions)
+// ============================================================
+function sessionTrainerDropdown(session, availableTrainers) {
+    return {
+        isOpen: false,
+        trainers: availableTrainers,
+        
+        init() {
+            // Ensure trainers data is available
+            console.log('Session trainer dropdown initialized', this.trainers);
+        },
+        
+        getTrainerName(id) {
+            if (!id) return 'Pilih Trainer untuk Hari Ini';
+            const trainer = this.trainers.find(t => t.id == id);
+            return trainer ? trainer.name : 'Pilih Trainer untuk Hari Ini';
+        },
+        
+        selectTrainer(id, name) {
+            session.trainer_id = id;
+            this.isOpen = false;
+        },
+        
+        toggleDropdown() {
+            this.isOpen = !this.isOpen;
+        },
+        
+        closeDropdown() {
+            this.isOpen = false;
+        }
+    }
+}
+
+// ============================================================
+// EDIT SESSION TRAINER DROPDOWN COMPONENT
+// ============================================================
+function editSessionTrainerDropdown(session, editTrainers) {
+    return {
+        isOpen: false,
+        trainers: editTrainers,
+        
+        init() {
+            console.log('Edit session trainer dropdown initialized', this.trainers);
+        },
+        
+        getTrainerName(id) {
+            if (!id) return 'Pilih Trainer';
+            const trainer = this.trainers.find(t => t.id == id);
+            return trainer ? trainer.name : 'Pilih Trainer';
+        },
+        
+        selectTrainer(id, name) {
+            session.trainer_id = id;
+            this.isOpen = false;
+        },
+        
+        toggleDropdown() {
+            this.isOpen = !this.isOpen;
+        },
+        
+        closeDropdown() {
+            this.isOpen = false;
+        }
+    }
+}
+
+// ============================================================
+// COPY TO CLIPBOARD UTILITY
+// ============================================================
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Link berhasil disalin!');
+        }).catch(() => {
+            fallbackCopyToClipboard(text);
+        });
+    } else {
+        fallbackCopyToClipboard(text);
+    }
+}
+
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        alert('Link berhasil disalin!');
+    } catch (err) {
+        alert('Gagal menyalin link');
+    }
+    document.body.removeChild(textArea);
 }
 </script>

@@ -1,5 +1,5 @@
 {{-- resources/views/profile/edit.blade.php (Fallback) --}}
-@extends('layouts.app')
+{{-- @extends('layouts.app')
 
 @section('content')
     <div class="py-12">
@@ -23,4 +23,4 @@
             </div>
         </div>
     </div>
-@endsection
+@endsection --}}

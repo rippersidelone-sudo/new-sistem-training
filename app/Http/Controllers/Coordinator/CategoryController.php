@@ -64,7 +64,7 @@ class CategoryController extends Controller
         // Get all categories for prerequisite selection (excluding current in edit)
         $allCategories = Category::orderBy('name')->get();
 
-        return view('coordinator.kategori-pelatihan', compact(
+        return view('coordinator.kategori-pelatihan.kategori-pelatihan', compact(
             'categories',
             'totalCategories',
             'withoutPrerequisite',

@@ -57,6 +57,19 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'options' => [
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_STRINGIFY_FETCHES => false,
+            ],
+            // Performance tuning
+            'pool' => [
+                'min' => 2,
+                'max' => 10,
+            ],
         ],
 
         'mariadb' => [

@@ -5,65 +5,101 @@ namespace App\Http\Controllers\BranchPic;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\Batch;
 use App\Models\BatchParticipant;
 use App\Models\Certificate;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
-    /**
-     * Display branch dashboard
-     */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
         $branchId = $user->branch_id;
         $branch = $user->branch;
 
-        // Get all participants from this branch
-        $participantsQuery = User::where('branch_id', $branchId)
-            ->whereHas('role', function($query) {
-                $query->where('name', 'Participant');
+        // === STATISTICS CARDS (tidak dipengaruhi filter) ===
+        $totalParticipants = User::where('branch_id', $branchId)
+            ->whereHas('role', function ($q) {
+                $q->where('name', 'Participant');
+            })
+            ->count();
+
+        $ongoingCount = BatchParticipant::whereHas('user', function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            })
+            ->whereHas('batch', function ($q) {
+                $q->where('status', 'Ongoing');
+            })
+            ->where('status', 'Approved')
+            ->count();
+
+        $completedCount = BatchParticipant::whereHas('user', function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            })
+            ->whereHas('batch', function ($q) {
+                $q->where('status', 'Completed');
+            })
+            ->where('status', 'Approved')
+            ->count();
+
+        $certificatesCount = Certificate::whereHas('user', function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            })
+            ->count();
+
+        // === TABEL PESERTA dengan filter ===
+        // Query berbasis User agar setiap baris = 1 peserta (bukan 1 batch_participant)
+        $query = User::where('branch_id', $branchId)
+            ->whereHas('role', function ($q) {
+                $q->where('name', 'Participant');
+            })
+            ->with([
+                'batchParticipants' => function ($q) {
+                    $q->with('batch')->latest()->limit(1);
+                },
+            ]);
+
+        // Filter: search nama / email
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
             });
+        }
 
-        // Total Peserta
-        $totalParticipants = $participantsQuery->count();
+        // Filter: status (berdasarkan batch terakhir peserta)
+        if ($request->filled('status')) {
+            $status = $request->status;
 
-        // Get batch participants with status
-        $batchParticipants = BatchParticipant::whereHas('user', function($query) use ($branchId) {
-            $query->where('branch_id', $branchId);
-        })->with(['batch', 'user']);
+            $query->whereHas('batchParticipants', function ($q) use ($status) {
+                switch ($status) {
+                    case 'ongoing':
+                        $q->where('status', 'Approved')
+                          ->whereHas('batch', fn($b) => $b->where('status', 'Ongoing'));
+                        break;
 
-        // Ongoing - peserta yang batch-nya ongoing
-        $ongoingCount = $batchParticipants->clone()
-            ->whereHas('batch', function($query) {
-                $query->where('status', 'Ongoing');
-            })
-            ->where('status', 'Approved')
-            ->count();
+                    case 'completed':
+                        $q->where('status', 'Approved')
+                          ->whereHas('batch', fn($b) => $b->where('status', 'Completed'));
+                        break;
 
-        // Completed - peserta yang batch-nya completed
-        $completedCount = $batchParticipants->clone()
-            ->whereHas('batch', function($query) {
-                $query->where('status', 'Completed');
-            })
-            ->where('status', 'Approved')
-            ->count();
+                    case 'approved':
+                        $q->where('status', 'Approved');
+                        break;
 
-        // Sertifikat - total sertifikat yang diterbitkan untuk peserta cabang ini
-        $certificatesCount = Certificate::whereHas('user', function($query) use ($branchId) {
-            $query->where('branch_id', $branchId);
-        })->count();
+                    case 'registered':
+                        $q->where('status', 'Pending');
+                        break;
 
-        // Peserta Terbaru (latest 6)
-        $recentParticipants = BatchParticipant::whereHas('user', function($query) use ($branchId) {
-                $query->where('branch_id', $branchId);
-            })
-            ->with(['user', 'batch.category'])
-            ->latest()
-            ->limit(6)
-            ->get();
+                    case 'rejected':
+                        $q->where('status', 'Rejected');
+                        break;
+                }
+            });
+        }
+
+        $participants = $query->latest()->paginate(10)->withQueryString();
 
         return view('branch_pic.dashboard', compact(
             'branch',
@@ -71,7 +107,7 @@ class DashboardController extends Controller
             'ongoingCount',
             'completedCount',
             'certificatesCount',
-            'recentParticipants'
+            'participants'
         ));
     }
 }

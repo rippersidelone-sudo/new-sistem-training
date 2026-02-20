@@ -1,5 +1,4 @@
 <?php
-// app/Models/Category.php
 
 namespace App\Models;
 
@@ -13,8 +12,10 @@ class Category extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'external_id',   
         'name',
         'description',
+        'last_synced_at',
     ];
 
     public function batches(): HasMany

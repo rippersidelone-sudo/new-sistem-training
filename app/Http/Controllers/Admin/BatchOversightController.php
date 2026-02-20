@@ -6,31 +6,49 @@ use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use App\Models\Branch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class BatchOversightController extends Controller
 {
     /**
-     * Display batch oversight with filters
+     * Display batch oversight with filters (WITH PERIOD FILTER)
      */
     public function index(Request $request)
     {
-        // Get filter parameters
         $search = $request->input('search');
         $status = $request->input('status');
-        $branchId = $request->input('branch_id');
+        $period = $request->input('period', 'all_time');
+        
+        // ✅ Get date range based on period
+        $dateRange = $this->getDateRange($period);
 
-        // Query batches with filters
-        $batches = Batch::with(['trainer', 'category'])
+        $batches = Batch::query()
+            ->select([
+                'id', 
+                'title', 
+                'trainer_id', 
+                'category_id', 
+                'start_date', 
+                'end_date', 
+                'status', 
+                'created_at'
+            ])
+            ->with([
+                'trainer:id,name',
+                'category:id,name'
+            ])
             ->withCount([
-                'batchParticipants as participants_count',
-                'batchParticipants as passed_count' => function($q) {
-                    $q->where('status', 'Approved')
-                        ->whereHas('user', function($query) {
-                            // User must have attendance AND feedback
-                            $query->whereHas('attendances', function($subQuery) {
-                                $subQuery->where('status', 'Approved');
-                            })
-                            ->whereHas('feedback');
+                'batchParticipants as participants_count' => function($query) {
+                    $query->where('status', 'Approved');
+                },
+                'batchParticipants as passed_count' => function($query) {
+                    $query->where('status', 'Approved')
+                        ->whereHas('user', function($q) {
+                            $q->whereHas('attendances', function($subQ) {
+                                $subQ->where('status', 'Approved');
+                            });
                         });
                 }
             ])
@@ -43,18 +61,95 @@ class BatchOversightController extends Controller
                 });
             })
             ->when($status, fn($q) => $q->where('status', $status))
-            ->when($branchId, function($q) use ($branchId) {
-                $q->whereHas('batchParticipants.user', function($query) use ($branchId) {
-                    $query->where('branch_id', $branchId);
-                });
+            // ✅ Filter by period (created_at)
+            ->when($period !== 'all_time', function($q) use ($dateRange) {
+                $q->whereBetween('created_at', [$dateRange['start'], $dateRange['end']]);
             })
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
-        $branches = Branch::orderBy('name')->get();
+        // ✅ Build filter options with period
+        $filterOptions = $this->buildFilterOptions($period);
 
-        // Build filter options - ADA STATUS & BRANCH (TIDAK ADA ROLE)
-        $filterOptions = [
+        return view('admin.batch-oversight', compact('batches', 'filterOptions', 'dateRange'));
+    }
+
+    /**
+     * ✅ Get date range based on period
+     */
+    private function getDateRange($period)
+    {
+        $now = now();
+        
+        switch ($period) {
+            case 'today':
+                return [
+                    'start' => $now->copy()->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => 'Hari Ini'
+                ];
+                
+            case 'this_week':
+                return [
+                    'start' => $now->copy()->startOfWeek(),
+                    'end' => $now->copy()->endOfWeek(),
+                    'label' => 'Minggu Ini'
+                ];
+                
+            case 'this_month':
+                return [
+                    'start' => $now->copy()->startOfMonth(),
+                    'end' => $now->copy()->endOfMonth(),
+                    'label' => $now->locale('id')->translatedFormat('F Y')
+                ];
+                
+            case 'last_30_days':
+                return [
+                    'start' => $now->copy()->subDays(30)->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => '30 Hari Terakhir'
+                ];
+                
+            case 'last_90_days':
+                return [
+                    'start' => $now->copy()->subDays(90)->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => '90 Hari Terakhir'
+                ];
+                
+            case 'this_year':
+                return [
+                    'start' => $now->copy()->startOfYear(),
+                    'end' => $now->copy()->endOfYear(),
+                    'label' => 'Tahun ' . $now->year
+                ];
+                
+            case 'last_year':
+                return [
+                    'start' => $now->copy()->subYear()->startOfYear(),
+                    'end' => $now->copy()->subYear()->endOfYear(),
+                    'label' => 'Tahun ' . ($now->year - 1)
+                ];
+                
+            case 'all_time':
+            default:
+                $firstBatch = Batch::orderBy('created_at')->first();
+                $startDate = $firstBatch ? $firstBatch->created_at : $now->copy()->subYears(5);
+                return [
+                    'start' => $startDate->copy()->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                    'label' => 'Semua Waktu'
+                ];
+        }
+    }
+
+    /**
+     * ✅ Build filter options
+     */
+    private function buildFilterOptions($period)
+    {
+        return [
             [
                 'name' => 'status',
                 'placeholder' => 'Semua Status',
@@ -66,65 +161,58 @@ class BatchOversightController extends Controller
                 ])
             ],
             [
-                'name' => 'branch_id',
-                'placeholder' => 'Semua Cabang',
+                'name' => 'period',
+                'placeholder' => 'Semua Waktu',
                 'options' => collect([
-                    ['value' => '', 'label' => 'Semua Cabang']
-                ])->merge(
-                    $branches->map(fn($branch) => [
-                        'value' => (string) $branch->id,
-                        'label' => $branch->name
-                    ])
-                )
+                    ['value' => 'all_time', 'label' => 'Semua Waktu'],
+                    ['value' => 'today', 'label' => 'Hari Ini'],
+                    ['value' => 'this_week', 'label' => 'Minggu Ini'],
+                    ['value' => 'this_month', 'label' => 'Bulan Ini'],
+                    ['value' => 'last_30_days', 'label' => '30 Hari Terakhir'],
+                    ['value' => 'last_90_days', 'label' => '90 Hari Terakhir'],
+                    ['value' => 'this_year', 'label' => 'Tahun Ini'],
+                    ['value' => 'last_year', 'label' => 'Tahun Lalu'],
+                ])
             ]
         ];
-
-        return view('admin.batch-oversight', compact('batches', 'branches', 'filterOptions'));
     }
 
     /**
-     * Show detailed batch information (AJAX)
+     * Show batch detail
      */
     public function show(Batch $batch)
     {
-        \Log::info('Batch Detail Request', ['batch_id' => $batch->id]);
-        
-        $batch->load([
-            'trainer', 
-            'category', 
-            'batchParticipants' => function($query) {
-                $query->where('status', 'Approved');
-            },
-            'batchParticipants.user.branch'
-        ]);
+        $batch->load(['trainer:id,name', 'category:id,name']);
 
-        // Calculate passed participants
+        $participantsCount = $batch->batchParticipants()
+            ->where('status', 'Approved')
+            ->count();
+
         $passedCount = $batch->batchParticipants()
             ->where('status', 'Approved')
             ->whereHas('user', function($query) use ($batch) {
                 $query->whereHas('attendances', function($q) use ($batch) {
                     $q->where('batch_id', $batch->id)
-                    ->where('status', 'Approved');
-                })
-                ->whereHas('feedback', function($q) use ($batch) {
-                    $q->where('batch_id', $batch->id);
+                      ->where('status', 'Approved');
                 });
             })
             ->count();
-
-        $batch->passed_count = $passedCount;
-        $batch->participants_count = $batch->batchParticipants->count();
-        
-        \Log::info('Batch Detail Response', [
-            'batch_id' => $batch->id,
-            'title' => $batch->title,
-            'participants_count' => $batch->participants_count,
-            'passed_count' => $passedCount
-        ]);
         
         return response()->json([
             'success' => true,
-            'batch' => $batch,
+            'batch' => [
+                'id' => $batch->id,
+                'title' => $batch->title,
+                'category' => $batch->category,
+                'trainer' => $batch->trainer,
+                'start_date' => $batch->start_date,
+                'end_date' => $batch->end_date,
+                'status' => $batch->status,
+                'zoom_link' => $batch->zoom_link,
+                'participants_count' => $participantsCount,
+                'passed_count' => $passedCount,
+                'created_at' => $batch->created_at,
+            ],
         ]);
     }
 
@@ -133,21 +221,23 @@ class BatchOversightController extends Controller
      */
     public function export(Request $request)
     {
-        // Apply same filters as index
         $search = $request->input('search');
         $status = $request->input('status');
-        $branchId = $request->input('branch_id');
+        $period = $request->input('period', 'all_time');
+        
+        $dateRange = $this->getDateRange($period);
 
-        $batches = Batch::with(['trainer', 'category'])
+        $batches = Batch::with(['trainer:id,name', 'category:id,name'])
             ->withCount([
-                'batchParticipants as participants_count',
+                'batchParticipants as participants_count' => function($q) {
+                    $q->where('status', 'Approved');
+                },
                 'batchParticipants as passed_count' => function($q) {
                     $q->where('status', 'Approved')
                         ->whereHas('user', function($query) {
                             $query->whereHas('attendances', function($subQuery) {
                                 $subQuery->where('status', 'Approved');
-                            })
-                            ->whereHas('feedback');
+                            });
                         });
                 }
             ])
@@ -159,10 +249,8 @@ class BatchOversightController extends Controller
                 });
             })
             ->when($status, fn($q) => $q->where('status', $status))
-            ->when($branchId, function($q) use ($branchId) {
-                $q->whereHas('batchParticipants.user', function($query) use ($branchId) {
-                    $query->where('branch_id', $branchId);
-                });
+            ->when($period !== 'all_time', function($q) use ($dateRange) {
+                $q->whereBetween('created_at', [$dateRange['start'], $dateRange['end']]);
             })
             ->orderBy('created_at', 'desc')
             ->get();

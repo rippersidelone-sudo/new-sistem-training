@@ -14,12 +14,12 @@
             searchPlaceholder="Cari batch, kategori, atau trainer..."
             :filters="[
                 [
-                    'name' => 'category',
+                    'name' => 'category_id',
                     'placeholder' => 'Semua Kategori',
-                    'options' => $batches->pluck('category')->unique('id')->map(fn($cat) => [
+                    'options' => collect($categories ?? [])->map(fn($cat) => [
                         'value' => $cat->id,
                         'label' => $cat->name
-                    ])->values()->toArray()
+                    ])->toArray()
                 ],
                 [
                     'name' => 'status',
@@ -41,9 +41,7 @@
             <div class="bg-white border rounded-2xl p-6 flex flex-col hover:shadow-md transition">
                 {{-- Header: Title & Status Badge --}}
                 <div class="mb-4">
-                    <h1 class="text-black font-medium text-xl mb-3">
-                        {{ $batch->title }}
-                    </h1>
+                    <x-tooltip-text :text="$batch->title" class="text-black font-medium text-xl mb-3" />
                     <div class="px-3 py-1 text-xs font-medium rounded-full {{ badgeStatus($batch->status) }} inline-block">
                         <p class="uppercase">{{ $batch->status }}</p>
                     </div>
@@ -51,9 +49,10 @@
 
                 {{-- Description --}}
                 <div class="mb-5">
-                    <p class="text-md font-medium text-gray-600 line-clamp-2">
-                        {{ $batch->category->description ?? 'Tidak ada deskripsi' }}
-                    </p>
+                    <x-tooltip-text 
+                        :text="$batch->category->description ?? 'Tidak ada deskripsi'" 
+                        class="text-md font-medium text-gray-600 line-clamp-2"
+                    />
                 </div>
 
                 {{-- Batch Info - Fixed spacing --}}
@@ -64,19 +63,17 @@
                             <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                 stroke-width="2" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm20 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                         </svg>
-                        <p class="text-sm font-semibold">
-                            {{ $batch->category->name }}
-                        </p>
+                        <x-tooltip-text :text="$batch->category->name" class="text-sm font-semibold" />
                     </div>
 
-                    {{-- Start Date --}}
+                    {{-- Start Date with new format: 15 Jan 2026 --}}
                     <div class="flex gap-2 text-gray-600 items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" class="flex-shrink-0">
                             <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
                             <path d="M16 3v4M8 3v4M4 11h16" />
                         </svg>
                         <p class="text-sm font-semibold">
-                            {{ $batch->start_date->format('d/m/Y') }}
+                            {{ $batch->start_date->format('d M Y') }}
                         </p>
                     </div>
 
@@ -108,20 +105,29 @@
                             <path d="M8 19h-3a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v11a1 1 0 0 1 -1 1" />
                             <path d="M12 14a2 2 0 1 0 4.001 -.001a2 2 0 0 0 -4.001 .001M17 19a2 2 0 0 0 -2 -2h-2a2 2 0 0 0 -2 2" />
                         </svg>
-                        <p class="text-sm font-semibold">
-                            {{ $batch->trainer->name }}
-                        </p>
+                        <x-tooltip-text :text="$batch->trainer->name" class="text-sm font-semibold" />
                     </div>
                 </div>
 
-                {{-- Prerequisites Warning --}}
+                {{-- Prerequisites Display in Grid --}}
                 @if($batch->has_prerequisites)
                 <div class="mb-5">
-                    <div class="w-full px-4 py-2 font-medium rounded-lg flex items-center justify-start bg-orange-100 border border-orange-300 text-[#FF4D00] gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0">
-                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M12 9v4M12 16v.01" />
-                        </svg>
-                        <p class="text-sm">Memerlukan prerequisite</p>
+                    <div class="w-full px-4 py-3 rounded-lg bg-orange-50 border border-orange-200">
+                        <div class="flex items-start gap-2 mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0 mt-0.5 text-[#FF4D00]">
+                                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M12 9v4M12 16v.01" />
+                            </svg>
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-[#FF4D00] mb-2">Prerequisite diperlukan:</p>
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($batch->category->prerequisites as $prereq)
+                                    <span class="inline-block px-2.5 py-1 text-xs font-medium rounded-md bg-orange-100 text-[#FF4D00] border border-orange-200">
+                                        {{ $prereq->name }}
+                                    </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 @endif
@@ -203,11 +209,11 @@
                                 </div>
                                 <div>
                                     <p class="text-gray-700 text-sm font-semibold mb-1">Tanggal Mulai</p>
-                                    <p class="text-gray-900">{{ $batch->start_date->format('d/m/Y') }}</p>
+                                    <p class="text-gray-900">{{ $batch->start_date->format('d M Y') }}</p>
                                 </div>
                                 <div>
                                     <p class="text-gray-700 text-sm font-semibold mb-1">Tanggal Selesai</p>
-                                    <p class="text-gray-900">{{ $batch->end_date->format('d/m/Y') }}</p>
+                                    <p class="text-gray-900">{{ $batch->end_date->format('d M Y') }}</p>
                                 </div>
                                 <div>
                                     <p class="text-gray-700 text-sm font-semibold mb-1">Kapasitas</p>
@@ -293,6 +299,13 @@
             </div>
         @endforelse
     </div>
+
+    {{-- Pagination --}}
+    @if(method_exists($batches, 'hasPages') && $batches->hasPages())
+    <div class="mt-6 px-2">
+        <x-pagination :paginator="$batches" />
+    </div>
+    @endif
 
     {{-- Notifications --}}
     @if(session('success'))

@@ -131,9 +131,9 @@
             </div>
         </div>
 
-        {{-- Participants Tab with Filters --}}
+        {{-- Participants Tab --}}
         <div x-show="tab === 'participants'" class="mt-6">
-            {{-- Filter Bar - Only 3 filters without branch --}}
+            {{-- Filter Bar --}}
             <div class="bg-white border rounded-2xl p-5 mb-6">
                 <div class="flex flex-col lg:flex-row gap-4">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
@@ -276,8 +276,9 @@
                             </div>
                         </div>
                     </div>
+                    </div>
 
-                    {{-- Reset Button - Outside Grid --}}
+                    {{-- Reset Button --}}
                     <div class="flex items-center lg:w-auto">
                         <button @click="resetFilters()"
                                 x-show="searchParticipant || filterAttendance || filterCompletion"
@@ -292,6 +293,7 @@
                     </div>
                 </div>
             </div>
+
             {{-- Participants Table --}}
             <div class="bg-white border rounded-2xl p-6">
                 <div class="flex items-center justify-between mb-5">
@@ -371,10 +373,25 @@
 
         {{-- Tasks Tab --}}
         <div x-show="tab === 'tasks'" class="mt-6">
-            <div class="bg-white border rounded-2xl p-6">
-                <h2 class="text-lg font-semibold mb-5">Daftar Tugas</h2>
+            @if($tasks->count() > 0)
+                {{-- Ada Tugas - Tampilkan List --}}
+                <div class="bg-white border rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-semibold">Daftar Tugas</h2>
+                        <a href="{{ route('trainer.kelola-tugas', ['batch_id' => $batch->id]) }}" 
+                           class="flex items-center gap-2 px-4 py-2 bg-[#10AF13] text-white rounded-lg hover:bg-[#0e8e0f] transition font-medium text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+                                <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
+                                <path d="M9 12l.01 0" />
+                                <path d="M13 12l2 0" />
+                                <path d="M9 16l.01 0" />
+                                <path d="M13 16l2 0" />
+                            </svg>
+                            Kelola Tugas
+                        </a>
+                    </div>
 
-                @if($tasks->count() > 0)
                     <div class="space-y-4">
                         @foreach($tasks as $task)
                             <div class="border rounded-xl p-4 hover:bg-gray-50 transition">
@@ -432,18 +449,69 @@
                             </div>
                         @endforeach
                     </div>
-                @else
-                    <div class="text-center py-12 text-gray-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" 
-                             stroke="currentColor" stroke-width="1.5" class="mx-auto mb-4 text-gray-400">
-                            <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
-                            <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
-                        </svg>
-                        <p class="text-lg font-medium">Belum ada tugas</p>
-                        <p class="text-sm mt-1">Tugas akan dibuat oleh Coordinator saat setup batch</p>
+                </div>
+            @else
+                {{-- Empty State - Belum Ada Tugas --}}
+                <div class="bg-white border rounded-2xl p-12">
+                    <div class="max-w-md mx-auto text-center">
+                        {{-- Icon --}}
+                        <div class="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" 
+                                 stroke="currentColor" stroke-width="1.5" class="text-gray-400">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+                                <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
+                                <path d="M9 12l.01 0" />
+                                <path d="M13 12l2 0" />
+                                <path d="M9 16l.01 0" />
+                                <path d="M13 16l2 0" />
+                            </svg>
+                        </div>
+
+                        {{-- Heading --}}
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Belum Ada Tugas</h3>
+                        
+                        {{-- Description --}}
+                        <p class="text-gray-600 mb-6">
+                            Batch ini belum memiliki tugas untuk peserta. Buat tugas pertama untuk memulai pembelajaran dan evaluasi peserta.
+                        </p>
+
+                        {{-- Info Box --}}
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+                            <div class="flex gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" 
+                                     stroke="currentColor" stroke-width="2" class="text-blue-600 flex-shrink-0 mt-0.5">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 16v-4"/>
+                                    <path d="M12 8h.01"/>
+                                </svg>
+                                <div class="text-sm text-blue-800">
+                                    <p class="font-medium mb-1">Tips:</p>
+                                    <p>Tugas membantu Anda mengevaluasi pemahaman peserta dan memberikan feedback yang konstruktif untuk pembelajaran mereka.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- CTA Button --}}
+                        <a href="{{ route('trainer.kelola-tugas', ['batch_id' => $batch->id]) }}" 
+                           class="inline-flex items-center gap-2 px-6 py-3 bg-[#10AF13] text-white rounded-lg hover:bg-[#0e8e0f] transition font-medium shadow-lg shadow-[#10AF13]/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5l0 14" />
+                                <path d="M5 12l14 0" />
+                            </svg>
+                            <span>Buat Tugas Pertama</span>
+                        </a>
+
+                        {{-- Secondary Link --}}
+                        <p class="text-sm text-gray-500 mt-4">
+                            Atau 
+                            <a href="{{ route('trainer.kelola-tugas') }}" class="text-[#10AF13] hover:underline font-medium">
+                                lihat semua tugas
+                            </a>
+                        </p>
                     </div>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -465,7 +533,6 @@
             display: none !important; 
         }
 
-        /* Custom scrollbar untuk dropdown */
         .max-h-60::-webkit-scrollbar {
             width: 6px;
         }
@@ -497,7 +564,6 @@
                 get filteredParticipants() {
                     let filtered = [...this.participantsData];
                     
-                    // Search filter
                     if (this.searchParticipant) {
                         const search = this.searchParticipant.toLowerCase();
                         filtered = filtered.filter(p => 
@@ -506,12 +572,10 @@
                         );
                     }
                     
-                    // Attendance filter
                     if (this.filterAttendance) {
                         filtered = filtered.filter(p => p.attendance_status === this.filterAttendance);
                     }
                     
-                    // Completion filter
                     if (this.filterCompletion === 'completed') {
                         filtered = filtered.filter(p => p.is_completed === true);
                     } else if (this.filterCompletion === 'incomplete') {

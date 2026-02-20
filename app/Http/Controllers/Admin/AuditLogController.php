@@ -12,18 +12,21 @@ class AuditLogController extends Controller
     public function index(Request $request)
     {
         $roles = Role::orderBy('name')->get();
-        
-        // Build query
-        $query = Activity::with(['causer.role', 'subject'])
+
+        // Build query — SELALU exclude event null agar tidak ada baris kosong
+        $query = Activity::with(['causer.role', 'causer.branch', 'subject'])
+            ->whereNotNull('event')        // ← FIX UTAMA: buang record tanpa event
+            ->whereIn('event', ['created', 'updated', 'deleted']) // hanya event valid
             ->latest();
 
-        // Search filter (user atau description)
+        // Search filter
         if ($search = $request->input('search')) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
-                  ->orWhereHas('causer', function($query) use ($search) {
-                      $query->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('causer', function ($query) use ($search) {
+                        $query->where('name', 'like', "%{$search}%")
+                              ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -34,125 +37,187 @@ class AuditLogController extends Controller
 
         // Role filter
         if ($roleId = $request->input('role_id')) {
-            $query->whereHas('causer', function($q) use ($roleId) {
+            $query->whereHas('causer', function ($q) use ($roleId) {
                 $q->where('role_id', $roleId);
             });
         }
 
-        // Get results (limit 100 untuk performa)
-        $activities = $query->take(100)->get();
+        // Subject type filter
+        if ($subjectType = $request->input('subject_type')) {
+            $query->where('subject_type', 'like', "%{$subjectType}%");
+        }
 
-        // Transform to match view format
-        $auditLogs = $activities->map(function($activity) {
+        // Date range filter
+        if ($dateFrom = $request->input('date_from')) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo = $request->input('date_to')) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        $activities = $query->paginate(20)->withQueryString();
+
+        // Transform
+        $auditLogs = $activities->getCollection()->map(function ($activity) {
+            $causer      = $activity->causer;
+            $subject     = $activity->subject;
+            $props       = $activity->properties;
+            $attributes  = $props->get('attributes', []);
+            $old         = $props->get('old', []);
+
+            $lastSyncedAt = null;
+            if ($subject && isset($subject->last_synced_at)) {
+                $lastSyncedAt = $subject->last_synced_at;
+            }
+
             return [
-                'id' => $activity->id,
-                'action' => $activity->event,
-                'role' => $activity->causer?->role?->name ?? 'System',
-                'role_id' => $activity->causer?->role_id,
-                'user' => $activity->causer?->name ?? 'System',
-                'description' => $this->formatDescription($activity),
-                'created_at' => $activity->created_at->toDateTimeString(),
+                'id'             => $activity->id,
+                'event'          => $activity->event,
+                'log_name'       => $activity->log_name,
+                'subject_type'   => $activity->subject_type
+                    ? class_basename($activity->subject_type)
+                    : '-',
+                'subject_id'     => $activity->subject_id,
+                'subject_label'  => $this->getSubjectLabel($activity),
+                'role'           => $causer?->role?->name ?? 'System',
+                'user_name'      => $causer?->name ?? 'System',
+                'user_email'     => $causer?->email ?? '-',
+                'user_branch'    => $causer?->branch?->name ?? '-',
+                'description'    => $this->formatDescription($activity),
+                'changes'        => $this->formatChanges($attributes, $old),
+                'changed_fields' => array_keys(array_diff_assoc($attributes, $old)),
+                'last_synced_at' => $lastSyncedAt
+                    ? \Carbon\Carbon::parse($lastSyncedAt)->format('d M Y, H:i')
+                    : '-',
+                'created_at'     => $activity->created_at->format('d M Y, H:i'),
+                'updated_at'     => $activity->updated_at->format('d M Y, H:i'),
+                'batch_uuid'     => $activity->batch_uuid,
             ];
         });
 
+        $activities->setCollection($auditLogs);
+
         // Count active filters
-        $activeFiltersCount = collect(['search', 'action', 'role_id'])
+        $activeFiltersCount = collect(['search', 'action', 'role_id', 'subject_type', 'date_from', 'date_to'])
             ->filter(fn($key) => $request->filled($key))
             ->count();
 
-        // Build filter options
         $filterOptions = [
-        [
-            'name' => 'action',
-            'placeholder' => 'Semua Aksi',
-            'options' => collect([
-                ['value' => '', 'label' => 'Semua Aksi'],
-                ['value' => 'created', 'label' => 'CREATE'],
-                ['value' => 'updated', 'label' => 'UPDATE'],
-                ['value' => 'deleted', 'label' => 'DELETE'],
-            ])
-        ],
-        [
-            'name' => 'role_id',
-            'placeholder' => 'Semua Role',
-            'options' => collect([
-                ['value' => '', 'label' => 'Semua Role']
-                ])->merge(
+            [
+                'name'        => 'action',
+                'placeholder' => 'Semua Aksi',
+                'options'     => collect([
+                    ['value' => '', 'label' => 'Semua Aksi'],
+                    ['value' => 'created', 'label' => 'CREATE'],
+                    ['value' => 'updated', 'label' => 'UPDATE'],
+                    ['value' => 'deleted', 'label' => 'DELETE'],
+                ]),
+            ],
+            [
+                'name'        => 'subject_type',
+                'placeholder' => 'Semua Modul',
+                'options'     => collect([
+                    ['value' => '', 'label' => 'Semua Modul'],
+                    ['value' => 'Batch', 'label' => 'Batch'],
+                    ['value' => 'User', 'label' => 'User'],
+                    ['value' => 'BatchParticipant', 'label' => 'Participant'],
+                    ['value' => 'Category', 'label' => 'Category'],
+                ]),
+            ],
+            [
+                'name'        => 'role_id',
+                'placeholder' => 'Semua Role',
+                'options'     => collect([['value' => '', 'label' => 'Semua Role']])->merge(
                     $roles->map(fn($role) => [
                         'value' => (string) $role->id,
-                        'label' => $role->name
+                        'label' => $role->name,
                     ])
-                )
-            ]
+                ),
+            ],
         ];
 
         return view('admin.audit-log', compact(
             'roles',
-            'auditLogs',
+            'activities',
             'filterOptions',
             'activeFiltersCount'
         ));
     }
 
-    /**
-     * Format activity description untuk display
-     */
+    private function getSubjectLabel(Activity $activity): string
+    {
+        $props      = $activity->properties;
+        $attributes = $props->get('attributes', []);
+        $old        = $props->get('old', []);
+        $subject    = $activity->subject;
+
+        $name = $attributes['title']
+            ?? $attributes['name']
+            ?? $old['title']
+            ?? $old['name']
+            ?? $subject?->title
+            ?? $subject?->name
+            ?? null;
+
+        return $name
+            ? ($name . ($activity->subject_id ? " (#{$activity->subject_id})" : ''))
+            : ($activity->subject_id ? "#{$activity->subject_id}" : '-');
+    }
+
     private function formatDescription(Activity $activity): string
     {
         $subject = $activity->subject;
-        $causer = $activity->causer;
-        $event = $activity->event;
+        $event   = $activity->event ?? 'unknown';
 
-        // Format berdasarkan subject type
         if ($activity->subject_type === 'App\Models\Batch') {
-            $batchTitle = $activity->properties->get('attributes')['title'] ?? 
-                         $activity->properties->get('old')['title'] ?? 
-                         $subject?->title ?? 
-                         'Unknown Batch';
-            
-            return match($event) {
+            $batchTitle = $activity->properties->get('attributes')['title']
+                ?? $activity->properties->get('old')['title']
+                ?? $subject?->title
+                ?? 'Unknown Batch';
+
+            return match ($event) {
                 'created' => "Membuat batch baru: {$batchTitle}",
                 'updated' => $this->getBatchUpdateDescription($activity),
                 'deleted' => "Menghapus batch: {$batchTitle}",
-                default => "{$event} batch: {$batchTitle}"
+                default   => ucfirst($event) . " batch: {$batchTitle}",
             };
         }
 
         if ($activity->subject_type === 'App\Models\User') {
-            $userName = $activity->properties->get('attributes')['name'] ?? 
-                       $activity->properties->get('old')['name'] ?? 
-                       $subject?->name ?? 
-                       'Unknown User';
-            
-            return match($event) {
+            $userName = $activity->properties->get('attributes')['name']
+                ?? $activity->properties->get('old')['name']
+                ?? $subject?->name
+                ?? 'Unknown User';
+
+            return match ($event) {
                 'created' => "Membuat user baru: {$userName}",
                 'updated' => "Mengubah data user: {$userName}",
                 'deleted' => "Menghapus user: {$userName}",
-                default => "{$event} user: {$userName}"
+                default   => ucfirst($event) . " user: {$userName}",
             };
         }
 
         if ($activity->subject_type === 'App\Models\BatchParticipant') {
-            return match($event) {
+            return match ($event) {
                 'created' => "Menyetujui pendaftaran peserta",
                 'updated' => "Mengubah status pendaftaran peserta",
-                default => "{$event} participant"
+                'deleted' => "Menghapus data peserta",
+                default   => ucfirst($event) . " participant",
             };
         }
 
-        // Default description
-        return $activity->description ?? ucfirst($event) . ' ' . class_basename($activity->subject_type ?? 'item');
+        // Fallback untuk subject type lain
+        $subjectName = class_basename($activity->subject_type ?? 'item');
+        return $activity->description
+            ?? ucfirst($event) . ' ' . strtolower($subjectName);
     }
 
-    /**
-     * Get specific description untuk batch update
-     */
     private function getBatchUpdateDescription(Activity $activity): string
     {
         $changes = $activity->properties->get('attributes', []);
-        $old = $activity->properties->get('old', []);
+        $old     = $activity->properties->get('old', []);
 
-        if (isset($changes['status']) && isset($old['status'])) {
+        if (isset($changes['status'], $old['status'])) {
             return "Mengubah status batch dari {$old['status']} menjadi {$changes['status']}";
         }
 
@@ -161,5 +226,54 @@ class AuditLogController extends Controller
         }
 
         return "Mengubah data batch";
+    }
+
+    private function formatChanges(array $attributes, array $old): array
+    {
+        if (empty($old)) {
+            return [];
+        }
+
+        $changes = [];
+        $skip    = ['updated_at', 'created_at', 'deleted_at', 'password', 'remember_token'];
+
+        foreach ($old as $field => $oldValue) {
+            if (in_array($field, $skip)) {
+                continue;
+            }
+
+            $newValue = $attributes[$field] ?? null;
+
+            if ($oldValue !== $newValue) {
+                $changes[] = [
+                    'field' => str_replace('_', ' ', ucfirst($field)),
+                    'old'   => $this->formatValue($oldValue),
+                    'new'   => $this->formatValue($newValue),
+                ];
+            }
+        }
+
+        return $changes;
+    }
+
+    private function formatValue(mixed $value): string
+    {
+        if (is_null($value)) {
+            return '—';
+        }
+        if (is_bool($value)) {
+            return $value ? 'Ya' : 'Tidak';
+        }
+        if (is_array($value)) {
+            return implode(', ', $value);
+        }
+        if (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}/', $value)) {
+            try {
+                return \Carbon\Carbon::parse($value)->format('d M Y, H:i');
+            } catch (\Throwable) {
+                // fall through
+            }
+        }
+        return (string) $value;
     }
 }

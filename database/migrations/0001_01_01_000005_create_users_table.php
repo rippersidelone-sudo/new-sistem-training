@@ -1,5 +1,4 @@
 <?php
-// 2024_01_01_000004_create_users_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -11,19 +10,37 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+
+            $table->string('external_id')->nullable()->unique()
+                ->comment('teacher_id dari External API (hanya untuk Participant)');
+
             $table->foreignId('role_id')->constrained()->cascadeOnDelete();
             $table->foreignId('branch_id')->nullable()->constrained()->nullOnDelete();
+
             $table->string('name');
+            
+            // Username: wajib untuk semua user, unique
+            $table->string('username')->unique()
+                ->comment('Username untuk login. Participant dari API, role lain di-generate otomatis');
+            
             $table->string('email')->unique();
+            $table->string('phone', 20)->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
+
+            $table->timestamp('last_synced_at')->nullable()
+                ->comment('Waktu terakhir data ini di-sync dari API (khusus Participant)');
+
             $table->timestamps();
             $table->softDeletes();
-            
+
+            $table->index('username');
             $table->index('email');
             $table->index('role_id');
             $table->index('branch_id');
+            $table->index('external_id', 'idx_users_external_id');
+            $table->index('last_synced_at', 'idx_users_last_synced');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -49,4 +66,3 @@ return new class extends Migration
         Schema::dropIfExists('users');
     }
 };
-

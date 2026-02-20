@@ -1,36 +1,19 @@
 @extends('layouts.admin')
 
 @section('content')
-    <div class="px-2">
-        <h1 class="text-2xl font-semibold">Batch Oversight</h1>
-        <p class="text-[#737373] mt-2 font-medium">Monitor dan kelola semua batch pelatihan</p>
+    <div class="px-2 flex justify-between items-start">
+        <div>
+            <h1 class="text-2xl font-semibold">Batch Oversight</h1>
+            <p class="text-[#737373] mt-2 font-medium">Monitor dan kelola semua batch pelatihan</p>
+        </div>
     </div>
 
-    {{-- Filter Bar Component --}}
+    {{-- Filter Bar --}}
     <div class="mt-8 mx-2">
         <x-filter-bar
             :action="route('admin.batch-oversight.index')"
             searchPlaceholder="Cari batch pelatihan..."
-            :filters="[
-                [
-                    'name' => 'status',
-                    'placeholder' => 'Semua Status',
-                    'options' => [
-                        ['value' => '', 'label' => 'Semua Status'],
-                        ['value' => 'Scheduled', 'label' => 'Scheduled'],
-                        ['value' => 'Ongoing', 'label' => 'Ongoing'],
-                        ['value' => 'Completed', 'label' => 'Completed'],
-                    ]
-                ],
-                [
-                    'name' => 'branch_id',
-                    'placeholder' => 'Semua Cabang',
-                    'options' => array_merge(
-                        [['value' => '', 'label' => 'Semua Cabang']],
-                        $branches->map(fn($b) => ['value' => $b->id, 'label' => $b->name])->toArray()
-                    )
-                ]
-            ]"
+            :filters="$filterOptions"
         />
     </div>
 
@@ -78,14 +61,14 @@
                                     trainer: data.batch.trainer,
                                     start_date: new Date(data.batch.start_date).toLocaleDateString('id-ID', {
                                         day: 'numeric',
-                                        month: 'short',
+                                        month: 'long',
                                         year: 'numeric',
                                         hour: '2-digit',
                                         minute: '2-digit'
                                     }),
                                     end_date: new Date(data.batch.end_date).toLocaleDateString('id-ID', {
                                         day: 'numeric',
-                                        month: 'short',
+                                        month: 'long',
                                         year: 'numeric',
                                         hour: '2-digit',
                                         minute: '2-digit'
@@ -121,24 +104,37 @@
                     <table class="min-w-full border border-gray-200 rounded-xl overflow-hidden">
                         <thead class="bg-[#F1F1F1]">
                             <tr class="text-left text-sm font-semibold text-gray-700">
+                                <th class="px-4 py-3 w-12 text-center">No</th>
                                 <th class="px-4 py-3">Kode</th>
                                 <th class="px-4 py-3">Judul Batch</th>
                                 <th class="px-4 py-3">Trainer</th>
-                                <th class="px-4 py-3">Tanggal</th>
+                                <th class="px-4 py-3">Tanggal Mulai</th>
                                 <th class="px-4 py-3 text-center">Peserta</th>
                                 <th class="px-4 py-3 text-center">Status</th>
                                 <th class="px-4 py-3 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y text-sm">
+                            @php $offset = ($batches->currentPage() - 1) * $batches->perPage(); @endphp
                             @foreach($batches as $batch)
                             <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 text-center text-gray-600 font-medium">
+                                    {{ $offset + $loop->iteration }}
+                                </td>
                                 <td class="px-4 py-3 font-medium">{{ formatBatchCode($batch->id, $batch->created_at->year) }}</td>
-                                <td class="px-4 py-3">{{ $batch->title }}</td>
+                                <td class="px-4 py-3">
+                                    <div>
+                                        <p class="font-medium">{{ $batch->title }}</p>
+                                        <p class="text-xs text-gray-500">{{ $batch->category->name ?? '-' }}</p>
+                                    </div>
+                                </td>
                                 <td class="px-4 py-3">{{ $batch->trainer->name ?? '-' }}</td>
-                                <td class="px-4 py-3">{{ $batch->start_date->format('d M Y') }}</td>
+                                <td class="px-4 py-3">{{ $batch->start_date->locale('id')->translatedFormat('d F Y') }}</td>
                                 <td class="px-4 py-3 text-center">
-                                    {{ $batch->participants_count }}/<span class="text-gray-700">Lulus: {{ $batch->passed_count ?? 0 }}</span>
+                                    <div class="flex flex-col">
+                                        <span class="font-semibold text-[#10AF13]">{{ $batch->participants_count }}</span>
+                                        <span class="text-xs text-gray-500">Lulus: {{ $batch->passed_count ?? 0 }}</span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     @php
@@ -156,7 +152,8 @@
                                 <td class="px-4 py-3 text-center">
                                     <div class="flex justify-center gap-2">
                                         <button @click="openDetail = true; fetchBatchDetail({{ $batch->id }})"
-                                            class="hover:text-[#10AF13] transition">
+                                            class="hover:text-[#10AF13] transition"
+                                            title="Lihat Detail">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
                                                 viewBox="0 0 20 20" fill="currentColor">
                                                 <path
@@ -170,6 +167,9 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    {{-- Pagination Component --}}
+                    <x-pagination :paginator="$batches" />
                 @endif
 
                 <!-- Modal Detail -->
