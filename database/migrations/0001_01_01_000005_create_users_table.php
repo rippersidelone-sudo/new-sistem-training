@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
 
-            // Sinkronisasi API 
             $table->string('external_id')->nullable()->unique()
                 ->comment('teacher_id dari External API (hanya untuk Participant)');
 
@@ -19,20 +18,24 @@ return new class extends Migration
             $table->foreignId('branch_id')->nullable()->constrained()->nullOnDelete();
 
             $table->string('name');
+            
+            // Username: wajib untuk semua user, unique
+            $table->string('username')->unique()
+                ->comment('Username untuk login. Participant dari API, role lain di-generate otomatis');
+            
             $table->string('email')->unique();
-            $table->string('phone', 20)->nullable()
-                ->comment('phone dari External API');
+            $table->string('phone', 20)->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
 
-            // Jika password/data berubah di API → update
             $table->timestamp('last_synced_at')->nullable()
                 ->comment('Waktu terakhir data ini di-sync dari API (khusus Participant)');
 
             $table->timestamps();
             $table->softDeletes();
 
+            $table->index('username');
             $table->index('email');
             $table->index('role_id');
             $table->index('branch_id');

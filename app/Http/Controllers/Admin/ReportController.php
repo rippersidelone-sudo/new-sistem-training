@@ -17,17 +17,10 @@ class ReportController extends Controller
     {
         $branches = Branch::orderBy('name')->get();
         
-        // ✅ Get filter values - GANTI MONTH JADI PERIOD
-        $period = $request->input('period', 'this_year'); // Default: Tahun Ini
+        $period = $request->input('period', 'this_year'); 
         $selectedBranch = $request->input('branch_id');
-        
-        // ✅ Get date range based on period
-        $dateRange = $this->getDateRange($period);
-        
-        // Monthly Trend Data (Based on period)
+        $dateRange = $this->getDateRange($period);      
         $monthlyTrend = $this->getMonthlyTrend($period, $dateRange, $selectedBranch);
-
-        // Overall Statistics (Based on period)
         $totalBatches = Batch::whereBetween('created_at', [$dateRange['start'], $dateRange['end']])->count();
         
         // Participants
@@ -60,7 +53,7 @@ class ReportController extends Controller
         $topBatches = $this->getTopPerformingBatches($dateRange, $selectedBranch);
 
         // ✅ Build filter options - PERIOD & BRANCH
-        $filterOptions = $this->buildFilterOptions($period);
+        $filterOptions = $this->buildFilterOptions($period, $selectedBranch);
 
         return view('admin.global-report', compact(
             'branches',
@@ -148,22 +141,23 @@ class ReportController extends Controller
     /**
      * ✅ Build filter options
      */
-    private function buildFilterOptions($period)
+    private function buildFilterOptions($period, $selectedBranch = null)
     {
         $branches = Branch::orderBy('name')->get();
-        
+
         return [
             [
                 'name' => 'period',
                 'placeholder' => 'Pilih Periode',
                 'options' => collect([
-                    ['value' => 'this_month', 'label' => 'Bulan Ini'],
+                    ['value' => 'this_month',    'label' => 'Bulan Ini'],
                     ['value' => 'last_3_months', 'label' => '3 Bulan Terakhir'],
                     ['value' => 'last_6_months', 'label' => '6 Bulan Terakhir'],
-                    ['value' => 'this_year', 'label' => 'Tahun Ini'],
-                    ['value' => 'last_year', 'label' => 'Tahun Lalu'],
-                    ['value' => 'all_time', 'label' => 'Semua Waktu'],
-                ])
+                    ['value' => 'this_year',     'label' => 'Tahun Ini'],
+                    ['value' => 'last_year',     'label' => 'Tahun Lalu'],
+                    ['value' => 'all_time',      'label' => 'Semua Waktu'],
+                ]),
+                'selected' => $period,  
             ],
             [
                 'name' => 'branch_id',
@@ -175,7 +169,8 @@ class ReportController extends Controller
                         'value' => (string) $branch->id,
                         'label' => $branch->name
                     ])
-                )
+                ),
+                'selected' => (string) $selectedBranch,  
             ]
         ];
     }

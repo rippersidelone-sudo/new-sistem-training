@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Helpers\RoleHelper;
 
+
 // ============================================================================
 // PUBLIC ROUTES
 // ============================================================================
@@ -43,6 +44,9 @@ Route::middleware('guest')->group(function () {
     
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
+
+    // Di dalam middleware auth, tapi di luar group role
+    Route::get('/settings', [App\Http\Controllers\ProfileController::class, 'edit'])->name('settings'); 
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
@@ -106,8 +110,7 @@ Route::middleware(['auth'])->group(function () {
         // Audit Log
         Route::get('/audit-logs', [App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit.index');
         
-        // Settings
-        Route::get('/settings', [App\Http\Controllers\ProfileController::class, 'edit'])->name('settings');
+        
     });
 
     // ============================================================================
@@ -137,8 +140,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports', [App\Http\Controllers\Coordinator\ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/export', [App\Http\Controllers\Coordinator\ReportController::class, 'export'])->name('reports.export');
 
-        // Settings
-        Route::get('/settings', [App\Http\Controllers\ProfileController::class, 'edit'])->name('settings');
+        
     });
 
     // ============================================================================
@@ -221,9 +223,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/materials/{material}', [App\Http\Controllers\Trainer\TrainerMaterialController::class, 'destroy'])
             ->name('materials.destroy');
 
-        // SETTINGS (Profile)
-        Route::get('/settings', [App\Http\Controllers\ProfileController::class, 'edit'])
-            ->name('settings');
+    
     });
 
     // ============================================================================
@@ -262,9 +262,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports/chart-data', [App\Http\Controllers\BranchPic\BranchReportController::class, 'getChartData'])
             ->name('reports.chart-data');
         
-        // Settings (Profile)
-        Route::get('/settings', [App\Http\Controllers\ProfileController::class, 'edit'])
-            ->name('settings');
     });
 
     // ============================================================================
@@ -313,21 +310,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/tugas/submissions/{submission}/download', [App\Http\Controllers\Participant\TaskController::class, 'download'])
             ->name('tugas.download');
 
-        // SERTIFIKAT (Certificates)
-        Route::get('/sertifikat', [App\Http\Controllers\Participant\SertifikatController::class, 'index'])
-            ->name('sertifikat');
-        Route::get('/sertifikat/{certificate}', [App\Http\Controllers\Participant\SertifikatController::class, 'show'])
-            ->name('sertifikat.show');
-        Route::get('/sertifikat/{certificate}/download', [App\Http\Controllers\Participant\SertifikatController::class, 'download'])
-            ->name('sertifikat.download');
-        Route::get('/sertifikat/{certificate}/preview', [App\Http\Controllers\Participant\SertifikatController::class, 'preview'])
-            ->name('sertifikat.preview');
-        Route::post('/sertifikat/check-eligibility', [App\Http\Controllers\Participant\SertifikatController::class, 'checkEligibility'])
-            ->name('sertifikat.check-eligibility');
-
-        // SETTINGS (Profile)
-        Route::get('/settings', [App\Http\Controllers\ProfileController::class, 'edit'])
-            ->name('settings');
     });
 });
 

@@ -9,8 +9,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-
-// ✅ Spatie Activity Log
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
@@ -23,6 +21,7 @@ class User extends Authenticatable
         'role_id',
         'branch_id',
         'name',
+        'username', 
         'email',
         'phone',
         'password',

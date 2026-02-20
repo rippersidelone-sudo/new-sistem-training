@@ -1,14 +1,12 @@
 {{-- resources/views/admin/role-permission/modal-delete.blade.php --}}
 
-<!-- Modal Delete User -->
 <div x-show="openDeleteUser" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div @click.outside="openDeleteUser = false" class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
-        
-        <!-- Icon Warning -->
+
         <div class="flex justify-center mb-4">
             <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" 
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="text-red-600">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                     <path d="M12 9v4" />
@@ -18,16 +16,15 @@
             </div>
         </div>
 
-        <!-- Content -->
         <h2 class="text-2xl font-bold text-gray-900 mb-3 text-center">Hapus User?</h2>
         <p class="text-gray-600 mb-6 text-center">
-            Yakin ingin menghapus <span class="font-semibold text-gray-900" x-text="deleteUserName"></span> 
+            Yakin ingin menghapus <span class="font-semibold text-gray-900" x-text="deleteUserName"></span>
             sebagai <span class="font-semibold text-gray-900" x-text="deleteUserRole"></span>?
         </p>
 
         <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
             <p class="text-sm text-red-700 flex items-start gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" class="flex-shrink-0 mt-0.5">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                     <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
@@ -38,19 +35,19 @@
             </p>
         </div>
 
-        <!-- Action Buttons -->
         <div class="flex gap-3">
             <button @click="openDeleteUser = false"
                     class="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
                 Batal
             </button>
-            <form :action="`/admin/users/${deleteUserId}`" method="POST" class="flex-1">
+
+            <form id="deleteUserForm" method="POST" action="" class="flex-1">
                 @csrf
                 @method('DELETE')
                 <button type="submit"
                         class="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium shadow-lg shadow-red-600/30">
                     <span class="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                             <path d="M4 7l16 0" />
@@ -66,3 +63,14 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-delete-id]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const userId = this.dataset.deleteId;
+                document.getElementById('deleteUserForm').action = '/admin/users/' + userId;
+            });
+        });
+    });
+</script>

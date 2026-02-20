@@ -39,17 +39,20 @@
     <div :class="{ 'mobile-open': open }"
          class="sidebar-container w-64 h-screen bg-[#10AF13] fixed top-0 left-0 flex flex-col justify-between p-4 z-50 lg:translate-x-0">
 
-        {{-- USER HEADER --}}
         <div>
+            {{-- Avatar → Settings --}}
             <div class="flex items-center space-x-3 mt-4">
-                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg">
-                    {{ Auth::user()->initials ?? strtoupper(substr(Auth::user()->name ?? '', 0, 1)) }}
-                </div>
+                <a href="{{ route('settings') }}"
+                   class="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg hover:ring-2 hover:ring-white/60 transition shrink-0">
+                    {{ strtoupper(substr(Auth::user()->name ?? '', 0, 1)) }}
+                </a>
 
                 <div class="flex-1 min-w-0">
-                    <h1 class="text-xl font-bold whitespace-normal text-black">
-                        {{ Auth::user()->name }}
-                    </h1>
+                    <a href="{{ route('settings') }}" class="hover:underline underline-offset-2">
+                        <h1 class="text-xl font-bold whitespace-normal text-black">
+                            {{ Auth::user()->name }}
+                        </h1>
+                    </a>
                     <p class="text-sm text-[#E1EFE2] leading-tight whitespace-normal">
                         {{ Auth::user()->role->description ?? 'Branch Coordinator' }}
                     </p>
@@ -65,14 +68,15 @@
 
             <hr class="border-[#E1EFE2]/40 mt-10 -mx-4">
 
-            {{-- MENU LIST --}}
             <nav class="mt-8 space-y-2">
+
+                {{-- Dashboard --}}
                 <a href="{{ route('branch_pic.dashboard') }}"
                    @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('branch_pic.dashboard') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
                         <path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
@@ -82,12 +86,13 @@
                     <span>Dashboard</span>
                 </a>
 
+                {{-- Participants --}}
                 <a href="{{ route('branch_pic.participants.index') }}"
                    @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('branch_pic.participants*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
                         <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
@@ -97,12 +102,13 @@
                     <span>Participants</span>
                 </a>
 
+                {{-- Validation --}}
                 <a href="{{ route('branch_pic.validation.index') }}"
                    @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
                    {{ request()->routeIs('branch_pic.validation*') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
                         <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
@@ -111,6 +117,7 @@
                     <span>Validation</span>
                 </a>
 
+                {{-- Reports --}}
                 <a href="{{ route('branch_pic.reports.index') }}"
                    @click="handleNavigation()"
                    class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
@@ -126,22 +133,10 @@
                     <span>Reports</span>
                 </a>
 
-                <a href="{{ route('branch_pic.settings') }}"
-                   @click="handleNavigation()"
-                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors text-white
-                   {{ request()->routeIs('branch_pic.settings') ? 'bg-[#E1EFE2] !text-black' : 'hover:bg-[#0e8e0f]' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                        <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
-                        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
-                    </svg>
-                    <span>Settings</span>
-                </a>
             </nav>
         </div>
 
-        {{-- LOGOUT --}}
+        {{-- Logout --}}
         <div>
             <hr class="border-[#E1EFE2]/40 mb-4 -mx-4">
             <form method="POST" action="{{ route('logout') }}">
@@ -172,50 +167,6 @@
             <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
     </button>
-
-    {{-- ✅ GLOBAL TOAST CONTAINER --}}
-    <div x-data="toastHub()" x-init="init()"
-         class="fixed bottom-6 right-6 z-[9999] w-full max-w-sm space-y-3 pointer-events-none">
-        <template x-for="t in toasts" :key="t.id">
-            <div x-show="t.show"
-                 x-transition:enter="transition ease-out duration-250"
-                 x-transition:enter-start="opacity-0 translate-y-2"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 translate-y-0"
-                 x-transition:leave-end="opacity-0 translate-y-2"
-                 class="pointer-events-auto">
-                <div class="flex items-start gap-3 px-4 py-3 rounded-xl shadow-2xl border border-white/20"
-                     :class="t.type === 'success' ? 'bg-[#10AF13] text-white' : 'bg-red-600 text-white'">
-                    <div class="mt-0.5">
-                        <template x-if="t.type === 'success'">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20 6 9 17l-5-5" />
-                            </svg>
-                        </template>
-                        <template x-if="t.type !== 'success'">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M18 6 6 18" /><path d="M6 6l12 12" />
-                            </svg>
-                        </template>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-semibold" x-text="t.title"></p>
-                        <p class="text-sm opacity-95 mt-0.5 leading-snug" x-text="t.message"></p>
-                    </div>
-                    <button type="button" @click="remove(t.id)"
-                            class="opacity-80 hover:opacity-100 transition" title="Tutup">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 6 6 18" /><path d="M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </template>
-    </div>
 </div>
 
 @push('scripts')
@@ -223,82 +174,24 @@
 function sidebarController() {
     return {
         open: false,
-
         init() {
             this.open = false;
             this.$nextTick(() => { this.open = false; });
         },
-
         openSidebar() {
             this.open = true;
             document.body.style.overflow = 'hidden';
         },
-
         closeSidebar() {
             this.open = false;
             document.body.style.overflow = '';
         },
-
         handleNavigation() {
             if (window.innerWidth < 1024) this.closeSidebar();
         }
     }
 }
-
-function toastHub() {
-    return {
-        toasts: [],
-        _id: 1,
-
-        init() {
-            window.toast = (options = {}) => {
-                const type = options.type || 'success';
-                const title = options.title || (type === 'success' ? 'Berhasil' : 'Gagal');
-                const message = options.message || '';
-                const timeout = Number(options.timeout ?? 3500);
-
-                const id = this._id++;
-                this.toasts.push({ id, type, title, message, show: true });
-
-                if (timeout > 0) setTimeout(() => this.remove(id), timeout);
-            };
-        },
-
-        remove(id) {
-            const idx = this.toasts.findIndex(t => t.id === id);
-            if (idx === -1) return;
-
-            this.toasts[idx].show = false;
-            setTimeout(() => {
-                this.toasts = this.toasts.filter(t => t.id !== id);
-            }, 220);
-        }
-    }
-}
 </script>
-
-@if(session('success'))
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    window.toast({ type: 'success', title: 'Berhasil', message: @js(session('success')) });
-});
-</script>
-@endif
-
-@if(session('error'))
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    window.toast({ type: 'error', title: 'Gagal', message: @js(session('error')) });
-});
-</script>
-@endif
-
-@if($errors->any())
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    window.toast({ type: 'error', title: 'Validasi Gagal', message: @js($errors->first()) });
-});
-</script>
-@endif
 @endpush
+
 @endsection

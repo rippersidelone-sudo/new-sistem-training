@@ -35,7 +35,7 @@
         </div>
     </div>
 
-    {{-- ✅ Filter Bar with Period --}}
+    {{-- Filter Bar --}}
     <div class="mt-8 mx-2">
         <x-filter-bar
             :action="route('admin.reports.index')"
@@ -46,25 +46,25 @@
 
     <!-- Tabs -->
     <div x-data="{ tab: 'laporan-bulanan' }" x-cloak>
-        <div class="flex bg-[#eaeaea] p-1 rounded-2xl mt-8 mx-2 w-fit">
+        <div class="flex bg-[#eaeaea] p-1 rounded-2xl mt-8 mx-2 ">
             <button
                 @click="tab = 'laporan-bulanan'"
                 :class="tab === 'laporan-bulanan' ? 'bg-white' : ''"
-                class="px-4 py-1 rounded-full text-sm font-semibold hover:bg-white transition">
+                class="flex-1 text-center py-2 rounded-full text-sm font-semibold hover:bg-white transition">
                 Laporan Bulanan
             </button>
 
             <button
                 @click="tab = 'laporan-cabang'"
                 :class="tab === 'laporan-cabang' ? 'bg-white' : ''"
-                class="px-4 py-1 rounded-full text-sm font-semibold hover:bg-white transition">
+                class="flex-1 text-center py-2 rounded-full text-sm font-semibold hover:bg-white transition">
                 Laporan per Cabang
             </button>
 
             <button
                 @click="tab = 'analisis-performa'"
                 :class="tab === 'analisis-performa' ? 'bg-white' : ''"
-                class="px-4 py-1 rounded-full text-sm font-semibold hover:bg-white transition">
+                class="flex-1 text-center py-2 rounded-full text-sm font-semibold hover:bg-white transition">
                 Analisis Performa
             </button>
         </div>
@@ -217,7 +217,6 @@
 
     @push('scripts')
     <script>
-        // ✅ Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
             // Monthly Trend Chart
             const trendCtx = document.getElementById('trendChart');

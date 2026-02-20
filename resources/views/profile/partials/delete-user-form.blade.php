@@ -1,4 +1,4 @@
-<!-- resources/views/profile/partials/delete-user-form.blade.php -->
+{{-- <!-- resources/views/profile/partials/delete-user-form.blade.php -->
 <section class="space-y-6">
     <header>
         <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -53,4 +53,4 @@
             </div>
         </form>
     </x-modal>
-</section>
+</section> --}}

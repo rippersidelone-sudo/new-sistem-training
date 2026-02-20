@@ -1,4 +1,4 @@
-<!-- resources/views/profile/partials/update-profile-information-form.blade.php -->
+{{-- <!-- resources/views/profile/partials/update-profile-information-form.blade.php -->
 <section>
     <header>
         <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -60,4 +60,4 @@
             @endif
         </div>
     </form>
-</section>
+</section> --}}

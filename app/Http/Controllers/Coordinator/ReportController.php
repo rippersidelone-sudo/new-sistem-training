@@ -7,7 +7,6 @@ use App\Models\Batch;
 use App\Models\BatchParticipant;
 use App\Models\Category;
 use App\Models\Attendance;
-use App\Models\Certificate;
 use App\Models\Feedback;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -74,16 +73,7 @@ class ReportController extends Controller
         ->distinct('user_id')
         ->count('user_id');
 
-        // Certificates issued
-        $certificatesIssued = Certificate::whereHas('batch', function($q) use ($startDate, $endDate) {
-            if ($startDate && $endDate) {
-                $q->whereBetween('start_date', [$startDate, $endDate]);
-            }
-        })
-        ->when($branchId, function($q) use ($branchId) {
-            $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-        })
-        ->count();
+        $certificatesIssued = 0;
 
         // Average attendance rate
         $avgAttendanceRate = $this->calculateAverageAttendance($startDate, $endDate, $branchId);

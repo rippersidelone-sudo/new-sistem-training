@@ -113,8 +113,7 @@
                 {{-- Task Header --}}
                 <div class="flex justify-between items-center">
                     <div>
-                        <h2 class="text-lg font-semibold">{{ $task->title }}</h2>
-                        <p class="text-lg font-medium text-gray-700">{{ $task->batch->title }}</p>
+                        <h2 class="text-lg font-semibold text-black">{{ $task->batch->title }} • {{ $task->batch->category->name }}</h2>
                     </div>
                     
                     {{-- Status Badge --}}

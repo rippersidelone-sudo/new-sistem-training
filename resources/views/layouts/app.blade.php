@@ -15,172 +15,193 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
+
     <style>
-        [x-cloak] { 
-            display: none !important; 
-        }
-        
-        /* Prevent sidebar flash/glitch */
+        [x-cloak] { display: none !important; }
+
         @media (min-width: 1024px) {
-            .sidebar-container {
-                transform: translateX(0) !important;
-            }
+            .sidebar-container { transform: translateX(0) !important; }
         }
-        
-        body {
-            opacity: 1;
-            transition: opacity 0.1s ease-in;
-        }
-        
-        html {
-            overflow-y: scroll;
-        }
+
+        body { opacity: 1; transition: opacity 0.1s ease-in; }
+        html { overflow-y: scroll; }
     </style>
 
     @stack('styles')
 </head>
 <body class="font-sans antialiased bg-gray-100">
-    {{-- REMOVED: Global x-data yang menyebabkan konflik --}}
-    {{-- Setiap halaman akan define x-data sendiri sesuai kebutuhan --}}
     <div class="min-h-screen">
 
-        {{-- Sidebar akan di-include oleh layout turunan --}}
         @yield('sidebar')
 
-        {{-- Main Content Area --}}
         <main class="lg:ml-64 min-h-screen p-8">
             @yield('content')
         </main>
 
-        {{-- Success Notification --}}
-        @if(session('success'))
-            <div x-data="{ show: true }" 
-                 x-show="show" 
-                 x-init="setTimeout(() => show = false, 4000)"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 translate-y-4"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 translate-y-0"
-                 x-transition:leave-end="opacity-0 translate-y-4"
-                 class="fixed bottom-6 right-6 z-50 max-w-md">
-                <div class="flex items-center gap-3 bg-[#10AF13] text-white px-5 py-4 rounded-xl shadow-2xl border border-white/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="flex-shrink-0">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M5 12l5 5l10 -10" />
-                    </svg>
-                    <span class="font-medium text-sm">{{ session('success') }}</span>
-                    <button @click="show = false" class="ml-2 hover:opacity-75 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M18 6l-12 12M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        @endif
+        {{-- =============================================
+             GLOBAL TOAST HUB
+             Dipanggil via: window.toast({ type, title, message })
+             ============================================= --}}
+        <div x-data="toastHub()"
+             x-init="init()"
+             class="fixed bottom-6 right-6 z-[9999] w-full max-w-sm space-y-3 pointer-events-none">
+            <template x-for="t in toasts" :key="t.id">
+                <div x-show="t.show"
+                     x-cloak
+                     x-transition:enter="transition ease-out duration-250"
+                     x-transition:enter-start="opacity-0 translate-y-2"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 translate-y-2"
+                     class="pointer-events-auto">
+                    <div class="flex items-start gap-3 px-4 py-3 rounded-xl shadow-2xl border border-white/20"
+                         :class="{
+                             'bg-[#10AF13] text-white' : t.type === 'success',
+                             'bg-red-600 text-white'   : t.type === 'error',
+                             'bg-yellow-500 text-white': t.type === 'warning',
+                             'bg-blue-600 text-white'  : t.type === 'info'
+                         }">
+                        {{-- Icon --}}
+                        <div class="mt-0.5 shrink-0">
+                            <template x-if="t.type === 'success'">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                            </template>
+                            <template x-if="t.type === 'error'">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 6 6 18" /><path d="M6 6l12 12" />
+                                </svg>
+                            </template>
+                            <template x-if="t.type === 'warning' || t.type === 'info'">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 8v4M12 16h.01" />
+                                </svg>
+                            </template>
+                        </div>
 
-        {{-- Error Notification --}}
-        @if(session('error'))
-            <div x-data="{ show: true }" 
-                 x-show="show" 
-                 x-init="setTimeout(() => show = false, 4000)"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 translate-y-4"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 translate-y-0"
-                 x-transition:leave-end="opacity-0 translate-y-4"
-                 class="fixed bottom-6 right-6 z-50 max-w-md">
-                <div class="flex items-center gap-3 bg-red-600 text-white px-5 py-4 rounded-xl shadow-2xl border border-white/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="flex-shrink-0">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M10 10l4 4m0 -4l-4 4" />
-                    </svg>
-                    <span class="font-medium text-sm">{{ session('error') }}</span>
-                    <button @click="show = false" class="ml-2 hover:opacity-75 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M18 6l-12 12M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        @endif
+                        {{-- Text --}}
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold" x-text="t.title"></p>
+                            <p class="text-sm opacity-95 mt-0.5 leading-snug" x-text="t.message"></p>
+                        </div>
 
-        {{-- Warning Notification --}}
-        @if(session('warning'))
-            <div x-data="{ show: true }" 
-                 x-show="show" 
-                 x-init="setTimeout(() => show = false, 4000)"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 translate-y-4"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 translate-y-0"
-                 x-transition:leave-end="opacity-0 translate-y-4"
-                 class="fixed bottom-6 right-6 z-50 max-w-md">
-                <div class="flex items-center gap-3 bg-yellow-500 text-white px-5 py-4 rounded-xl shadow-2xl border border-white/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="flex-shrink-0">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 9v4M12 17h.01" />
-                    </svg>
-                    <span class="font-medium text-sm">{{ session('warning') }}</span>
-                    <button @click="show = false" class="ml-2 hover:opacity-75 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M18 6l-12 12M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        @endif
-
-        {{-- Validation Errors Notification --}}
-        @if($errors->any())
-            <div x-data="{ show: true }" 
-                 x-show="show" 
-                 x-init="setTimeout(() => show = false, 5000)"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 translate-y-4"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 translate-y-0"
-                 x-transition:leave-end="opacity-0 translate-y-4"
-                 class="fixed bottom-6 right-6 z-50 max-w-md">
-                <div class="flex items-start gap-3 bg-red-600 text-white px-5 py-4 rounded-xl shadow-2xl border border-white/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" 
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="flex-shrink-0 mt-0.5">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M10 10l4 4m0 -4l-4 4" />
-                    </svg>
-                    <div class="flex-1">
-                        @foreach($errors->all() as $error)
-                            <p class="font-medium text-sm">{{ $error }}</p>
-                            @if(!$loop->last)<div class="my-1"></div>@endif
-                        @endforeach
+                        {{-- Close --}}
+                        <button type="button" @click="remove(t.id)"
+                                class="opacity-80 hover:opacity-100 transition shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 6 6 18" /><path d="M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
-                    <button @click="show = false" class="hover:opacity-75 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M18 6l-12 12M6 6l12 12" />
-                        </svg>
-                    </button>
                 </div>
-            </div>
-        @endif
+            </template>
+        </div>
 
     </div>
 
-    {{-- CRITICAL: Scripts dari child views (modal edit butuh ini!) --}}
     @stack('scripts')
+
+    {{-- =============================================
+         TOAST HUB SCRIPT — hanya satu, di sini saja
+         ============================================= --}}
+    <script>
+    function toastHub() {
+        return {
+            toasts: [],
+            _id: 1,
+
+            init() {
+                // Expose global window.toast()
+                window.toast = (options = {}) => {
+                    const type    = options.type    || 'success';
+                    const title   = options.title   || ({ success: 'Berhasil', error: 'Gagal', warning: 'Peringatan', info: 'Info' }[type] ?? 'Notifikasi');
+                    const message = options.message || '';
+                    const timeout = Number(options.timeout ?? 3500);
+
+                    const id = this._id++;
+                    this.toasts.push({ id, type, title, message, show: true });
+
+                    if (timeout > 0) {
+                        setTimeout(() => this.remove(id), timeout);
+                    }
+                };
+
+                // Flush session flash yang di-pass via meta (opsional, lihat catatan)
+            },
+
+            remove(id) {
+                const idx = this.toasts.findIndex(t => t.id === id);
+                if (idx === -1) return;
+                this.toasts[idx].show = false;
+                setTimeout(() => {
+                    this.toasts = this.toasts.filter(t => t.id !== id);
+                }, 220);
+            }
+        }
+    }
+    </script>
+
+    {{-- =============================================
+         SESSION FLASH → window.toast()
+         Sentralisasi di sini, TIDAK perlu di layout role
+         ============================================= --}}
+    @if(session('success'))
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        window.toast({ type: 'success', title: 'Berhasil', message: @js(session('success')) });
+    });
+    </script>
+    @endif
+
+    @if(session('error'))
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        window.toast({ type: 'error', title: 'Gagal', message: @js(session('error')) });
+    });
+    </script>
+    @endif
+
+    @if(session('warning'))
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        window.toast({ type: 'warning', title: 'Peringatan', message: @js(session('warning')) });
+    });
+    </script>
+    @endif
+
+    @if(session('info'))
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        window.toast({ type: 'info', title: 'Info', message: @js(session('info')) });
+    });
+    </script>
+    @endif
+
+    {{-- Validation errors: satu toast per field, muncul bertumpuk dengan delay --}}
+    @if($errors->any() && !session('error'))
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const errors = @js($errors->all());
+        errors.forEach((message, index) => {
+            setTimeout(() => {
+                window.toast({
+                    type   : 'error',
+                    title  : 'Validasi Gagal',
+                    message: message,
+                    timeout: 5000 + (index * 500), {{-- toast lebih lama semakin banyak error --}}
+                });
+            }, index * 150); {{-- delay antar toast supaya animasi terlihat bertumpuk --}}
+        });
+    });
+    </script>
+    @endif
+
 </body>
 </html>

@@ -13,7 +13,7 @@
                 </p>
             </div>
 
-            {{-- (Opsional) Sync Button --}}
+            {{-- Sync Button --}}
             <button
                 x-data="syncAllAdmin()"
                 @click="sync()"
@@ -117,7 +117,7 @@
                     <input type="hidden" name="year" :value="currentValue">
                 </div>
 
-                {{-- Month (conditional) --}}
+                {{-- Month --}}
                 <div class="md:col-span-3"
                      x-show="$root.querySelector('[name=period]').value === 'specific_month'"
                      x-cloak
@@ -372,71 +372,163 @@
         // SYNC ALL (ADMIN)
         // ============================================================
         function syncAllAdmin() {
-            return {
-                loading: false,
+    return {
+        loading: false,
 
-                sync() {
-                    if (this.loading) return;
-                    this.loading = true;
+        sync() {
+            if (this.loading) return;
+            this.loading = true;
 
-                    fetch('{{ route('sync.all') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        },
-                    })
-                    .then(async (res) => {
-                        const contentType = res.headers.get('content-type') || '';
-                        if (!contentType.includes('application/json')) {
-                            const text = await res.text();
-                            throw new Error(text || 'Response bukan JSON');
-                        }
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data?.message || 'Request gagal');
-                        return data;
-                    })
-                    .then((data) => {
-                        this.loading = false;
-                        this.showNotification(!!data.success, data.message || 'Sync selesai');
-
-                        if (data.success) {
-                            setTimeout(() => {
-                                window.location.href = window.location.href; // keep filter query
-                            }, 1200);
-                        }
-                    })
-                    .catch((err) => {
-                        console.error('SYNC ADMIN ERROR:', err);
-                        this.loading = false;
-                        this.showNotification(false, err?.message || 'Terjadi kesalahan saat sync data.');
-                    });
+            fetch('{{ route('sync.all') }}', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 },
-
-                showNotification(success, message) {
-                    const div = document.createElement('div');
-                    div.innerHTML = `
-                        <div x-data="{ show: true }"
-                             x-show="show"
-                             x-init="setTimeout(() => show = false, 4000)"
-                             x-transition:enter="transition ease-out duration-300"
-                             x-transition:enter-start="opacity-0 translate-y-4"
-                             x-transition:enter-end="opacity-100 translate-y-0"
-                             x-transition:leave="transition ease-in duration-200"
-                             x-transition:leave-start="opacity-100 translate-y-0"
-                             x-transition:leave-end="opacity-0 translate-y-4"
-                             class="fixed bottom-6 right-6 z-50 max-w-md">
-                            <div class="flex items-center gap-3 ${success ? 'bg-[#10AF13]' : 'bg-red-600'} text-white px-5 py-4 rounded-xl shadow-2xl border border-white/20">
-                                <span class="font-medium text-sm">${message}</span>
-                            </div>
-                        </div>
-                    `;
-                    document.body.appendChild(div.firstElementChild);
-                    Alpine.initTree(document.body.lastElementChild);
+            })
+            .then(async (res) => {
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await res.text();
+                    throw new Error(text || 'Response bukan JSON');
                 }
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.message || 'Request gagal');
+                return data;
+            })
+            .then((data) => {
+                this.loading = false;
+
+                const errorDetails = data.error_details || [];
+
+                if (data.success) {
+                    // Sukses tanpa error
+                    this.showNotification(true, data.message || 'Sync selesai', []);
+                    setTimeout(() => {
+                        window.location.href = window.location.href;
+                    }, 1200);
+                } else {
+                    // Ada error — tampilkan dengan detail
+                    this.showNotification(false, data.message || 'Sync selesai dengan error', errorDetails);
+                }
+            })
+            .catch((err) => {
+                console.error('SYNC ADMIN ERROR:', err);
+                this.loading = false;
+                this.showNotification(false, err?.message || 'Terjadi kesalahan saat sync data.', []);
+            });
+        },
+
+        showNotification(success, message, errorDetails = []) {
+            // Hapus notifikasi lama jika ada
+            const existing = document.getElementById('sync-notification');
+            if (existing) existing.remove();
+
+            const timeout  = success ? 4000 : 8000;
+            const hasDetail = !success && errorDetails.length > 0;
+
+            // Build detail list HTML
+            let detailHtml = '';
+            if (hasDetail) {
+                const items = errorDetails.map(d => `
+                    <li class="flex items-start gap-2 text-xs text-white/90">
+                        <svg class="h-3 w-3 mt-0.5 shrink-0 text-red-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <span>${this.escapeHtml(d)}</span>
+                    </li>
+                `).join('');
+
+                detailHtml = `
+                    <div id="sync-detail-panel" class="border-t border-white/20 bg-black/20 px-5 py-3 max-h-52 overflow-y-auto" style="display:none">
+                        <p class="text-xs font-semibold text-white/60 uppercase tracking-wide mb-2">Detail Error</p>
+                        <ul class="space-y-2">${items}</ul>
+                    </div>
+                `;
             }
+
+            // Build toggle button
+            const toggleBtn = hasDetail ? `
+                <button
+                    onclick="
+                        const panel = document.getElementById('sync-detail-panel');
+                        const label = document.getElementById('sync-detail-label');
+                        if (panel.style.display === 'none') {
+                            panel.style.display = 'block';
+                            label.textContent = 'Sembunyikan detail';
+                        } else {
+                            panel.style.display = 'none';
+                            label.textContent = 'Lihat ${errorDetails.length} detail error';
+                        }
+                    "
+                    class="mt-1.5 flex items-center gap-1 text-xs text-white/80 hover:text-white underline underline-offset-2 transition">
+                    <span id="sync-detail-label">Lihat ${errorDetails.length} detail error</span>
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+            ` : '';
+
+            const bgColor = success ? 'bg-[#10AF13]' : 'bg-red-600';
+
+            const wrapper = document.createElement('div');
+            wrapper.id    = 'sync-notification';
+            wrapper.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;max-width:420px;width:100%;';
+
+            wrapper.innerHTML = `
+                <div class="${bgColor} text-white rounded-xl shadow-2xl border border-white/20 overflow-hidden">
+
+                    {{-- Main row --}}
+                    <div class="flex items-start gap-3 px-5 py-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                             class="shrink-0 mt-0.5">
+                            ${success
+                                ? '<path d="M5 12l5 5l10 -10"/>'
+                                : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+                            }
+                        </svg>
+
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium leading-snug">${this.escapeHtml(message)}</p>
+                            ${toggleBtn}
+                        </div>
+
+                        <button onclick="document.getElementById('sync-notification').remove()"
+                                class="hover:opacity-75 transition shrink-0">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6l-12 12M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    ${detailHtml}
+                </div>
+            `;
+
+            document.body.appendChild(wrapper);
+
+            // Auto hide
+            if (timeout > 0) {
+                setTimeout(() => {
+                    if (document.getElementById('sync-notification')) {
+                        document.getElementById('sync-notification').remove();
+                    }
+                }, timeout);
+            }
+        },
+
+        // Escape HTML untuk keamanan
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
         }
+    }
+}
 
         function dashboardFilter() {
             return {

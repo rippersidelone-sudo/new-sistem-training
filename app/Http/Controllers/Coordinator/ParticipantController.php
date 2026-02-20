@@ -90,7 +90,7 @@ class ParticipantController extends Controller
             ->orderBy('start_date', 'desc')
             ->get();
 
-        return view('coordinator.validasi-peserta', compact(
+        return view('coordinator.monitoring-peserta', compact(
             'participants',
             'pendingCount',
             'approvedCount',

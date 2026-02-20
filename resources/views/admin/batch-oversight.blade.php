@@ -8,7 +8,7 @@
         </div>
     </div>
 
-    {{-- ++Filter Bar with Period --}}
+    {{-- Filter Bar --}}
     <div class="mt-8 mx-2">
         <x-filter-bar
             :action="route('admin.batch-oversight.index')"
@@ -104,6 +104,7 @@
                     <table class="min-w-full border border-gray-200 rounded-xl overflow-hidden">
                         <thead class="bg-[#F1F1F1]">
                             <tr class="text-left text-sm font-semibold text-gray-700">
+                                <th class="px-4 py-3 w-12 text-center">No</th>
                                 <th class="px-4 py-3">Kode</th>
                                 <th class="px-4 py-3">Judul Batch</th>
                                 <th class="px-4 py-3">Trainer</th>
@@ -114,8 +115,12 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y text-sm">
+                            @php $offset = ($batches->currentPage() - 1) * $batches->perPage(); @endphp
                             @foreach($batches as $batch)
                             <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 text-center text-gray-600 font-medium">
+                                    {{ $offset + $loop->iteration }}
+                                </td>
                                 <td class="px-4 py-3 font-medium">{{ formatBatchCode($batch->id, $batch->created_at->year) }}</td>
                                 <td class="px-4 py-3">
                                     <div>

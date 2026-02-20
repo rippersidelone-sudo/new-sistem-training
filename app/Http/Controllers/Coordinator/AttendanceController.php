@@ -12,223 +12,144 @@ use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
-    /**
-     * Display attendance monitoring page
-     */
     public function index(Request $request)
     {
-        // Get filter parameters
-        $batchId = $request->input('batch_id');
+        $batchId  = $request->input('batch_id');
         $branchId = $request->input('branch_id');
 
-        // Base query for attendances
-        $attendanceQuery = Attendance::with(['user.branch', 'batch.category']);
-
-        // Apply filters
-        if ($batchId) {
-            $attendanceQuery->where('batch_id', $batchId);
-        }
-
-        if ($branchId) {
-            $attendanceQuery->whereHas('user', function($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
-            });
-        }
-
         // ========== STATISTICS ==========
-        
-        // Get all approved participants based on filters
         $participantsQuery = BatchParticipant::where('status', 'Approved')
-            ->when($batchId, function($q) use ($batchId) {
-                $q->where('batch_id', $batchId);
-            })
-            ->when($branchId, function($q) use ($branchId) {
-                $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-            });
+            ->when($batchId,  fn($q) => $q->where('batch_id', $batchId))
+            ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)));
 
         $totalParticipants = (clone $participantsQuery)->distinct('user_id')->count('user_id');
 
-        // Get attendance statistics
-        $validatedCount = (clone $attendanceQuery)->where('status', 'Present')->distinct('user_id')->count('user_id');
-        $checkinCount = (clone $attendanceQuery)->where('status', 'Pending')->distinct('user_id')->count('user_id');
-        
-        // Calculate absent (total participants - those who have attendance records)
-        $attendedUsers = (clone $attendanceQuery)->distinct('user_id')->pluck('user_id');
-        $absentCount = $totalParticipants - $attendedUsers->count();
+        $baseAttendance = Attendance::query()
+            ->when($batchId,  fn($q) => $q->where('batch_id', $batchId))
+            ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)));
 
-        // Calculate overall attendance rate
-        $attendanceRate = $totalParticipants > 0 
-            ? round(($validatedCount / $totalParticipants) * 100, 2) 
+        // 'Approved' = validated oleh trainer, 'Checked-in' = sudah check-in belum divalidasi
+        $validatedCount = (clone $baseAttendance)->where('status', 'Approved')->distinct('user_id')->count('user_id');
+        $checkinCount   = (clone $baseAttendance)->where('status', 'Checked-in')->distinct('user_id')->count('user_id');
+        $absentCount    = (clone $baseAttendance)->where('status', 'Absent')->distinct('user_id')->count('user_id');
+
+        $attendanceRate = $totalParticipants > 0
+            ? round(($validatedCount / $totalParticipants) * 100, 2)
             : 0;
 
         // ========== ATTENDANCE PER BATCH ==========
-        $batchAttendanceQuery = Batch::with('category')
-            ->when($batchId, function($q) use ($batchId) {
-                $q->where('id', $batchId);
+        $batchAttendance = Batch::with('category')
+            ->when($batchId, fn($q) => $q->where('id', $batchId))
+            ->orderBy('start_date', 'desc')
+            ->get()
+            ->map(function ($batch) use ($branchId) {
+                $totalInBatch = BatchParticipant::where('batch_id', $batch->id)
+                    ->where('status', 'Approved')
+                    ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)))
+                    ->distinct('user_id')
+                    ->count('user_id');
+
+                if ($totalInBatch === 0) return null;
+
+                $validated = Attendance::where('batch_id', $batch->id)
+                    ->where('status', 'Approved')
+                    ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)))
+                    ->distinct('user_id')
+                    ->count('user_id');
+
+                $checkin = Attendance::where('batch_id', $batch->id)
+                    ->where('status', 'Checked-in')
+                    ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)))
+                    ->distinct('user_id')
+                    ->count('user_id');
+
+                $rate = round(($validated / $totalInBatch) * 100, 2);
+
+                $rateColor = $rate >= 80
+                    ? 'text-[#10AF13] bg-green-100'
+                    : ($rate >= 50 ? 'text-[#FF4D00] bg-orange-100' : 'text-[#ff0000] bg-red-100');
+
+                return [
+                    'id'               => $batch->id,
+                    'title'            => $batch->title,
+                    'code'             => formatBatchCode($batch->id, $batch->created_at->year),
+                    'category'         => $batch->category->name,
+                    'validated'        => $validated,
+                    'checkin'          => $checkin,
+                    'total_participants' => $totalInBatch,
+                    'rate'             => $rate,
+                    'rate_color'       => $rateColor,
+                ];
             })
-            ->orderBy('start_date', 'desc');
+            ->filter()
+            ->values();
 
-        $batchAttendance = $batchAttendanceQuery->get()->map(function($batch) use ($branchId) {
-            // Get approved participants for this batch
-            $batchParticipants = BatchParticipant::where('batch_id', $batch->id)
-                ->where('status', 'Approved')
-                ->when($branchId, function($q) use ($branchId) {
-                    $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-                })
-                ->distinct('user_id')
-                ->count('user_id');
-
-            // Get validated attendances (Present status)
-            $validated = Attendance::where('batch_id', $batch->id)
-                ->where('status', 'Present')
-                ->when($branchId, function($q) use ($branchId) {
-                    $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-                })
-                ->distinct('user_id')
-                ->count('user_id');
-
-            // Get check-in (pending) attendances
-            $checkin = Attendance::where('batch_id', $batch->id)
-                ->where('status', 'Pending')
-                ->when($branchId, function($q) use ($branchId) {
-                    $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-                })
-                ->distinct('user_id')
-                ->count('user_id');
-
-            // Calculate rate
-            $rate = $batchParticipants > 0 
-                ? round(($validated / $batchParticipants) * 100, 2) 
-                : 0;
-
-            // Determine color based on rate
-            $rateColor = 'text-[#ff0000] bg-red-100'; // Default red for 0%
-            if ($rate >= 80) {
-                $rateColor = 'text-[#10AF13] bg-green-100';
-            } elseif ($rate >= 50) {
-                $rateColor = 'text-[#FF4D00] bg-orange-100';
-            }
-
-            return [
-                'id' => $batch->id,
-                'title' => $batch->title,
-                'code' => formatBatchCode($batch->id, $batch->created_at->year),
-                'category' => $batch->category->name,
-                'validated' => $validated,
-                'checkin' => $checkin,
-                'total_participants' => $batchParticipants,
-                'rate' => $rate,
-                'rate_color' => $rateColor,
-            ];
-        })->filter(function($batch) {
-            return $batch['total_participants'] > 0; // Only show batches with participants
-        })->values();
-
-        // ========== ATTENDANCE DETAILS ==========
+        // ========== DETAIL TABEL ==========
         $attendances = Attendance::with(['user.branch', 'batch.category'])
-            ->when($batchId, function($q) use ($batchId) {
-                $q->where('batch_id', $batchId);
-            })
-            ->when($branchId, function($q) use ($branchId) {
-                $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-            })
+            ->when($batchId,  fn($q) => $q->where('batch_id', $batchId))
+            ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)))
             ->orderBy('attendance_date', 'desc')
-            ->orderBy('checkin_time', 'desc') // FIXED: checkin_time (no underscore)
+            ->orderBy('checkin_time', 'desc')
             ->paginate(15)
             ->withQueryString();
 
-        // Transform attendance data
-        $attendances->getCollection()->transform(function($attendance) {
-            // Determine status display
-            $statusLabel = '';
-            $statusClass = '';
-            
-            switch($attendance->status) {
-                case 'Present':
-                    $statusLabel = 'Validated';
-                    $statusClass = 'bg-green-100 text-[#10AF13]';
-                    break;
-                case 'Pending':
-                    $statusLabel = 'Check-In';
-                    $statusClass = 'bg-orange-100 text-[#FF4D00]';
-                    break;
-                case 'Absent':
-                    $statusLabel = 'Absent';
-                    $statusClass = 'bg-red-100 text-[#ff0000]';
-                    break;
-            }
+        $attendances->getCollection()->transform(function ($attendance) {
+            [$statusLabel, $statusClass] = match ($attendance->status) {
+                'Approved'   => ['Validated',  'bg-green-100 text-[#10AF13]'],
+                'Checked-in' => ['Check-In',   'bg-orange-100 text-[#FF4D00]'],
+                'Absent'     => ['Absent',      'bg-red-100 text-[#ff0000]'],
+                default      => [$attendance->status, 'bg-gray-100 text-gray-600'],
+            };
 
             return [
-                'id' => $attendance->id,
-                'user_name' => $attendance->user->name,
-                'user_nip' => $attendance->user->nip ?? '-',
-                'branch_name' => $attendance->user->branch->name ?? '-',
-                'batch_title' => $attendance->batch->title,
-                'batch_code' => formatBatchCode($attendance->batch->id, $attendance->batch->created_at->year),
-                'status' => $attendance->status,
+                'id'           => $attendance->id,
+                'user_name'    => $attendance->user->name,
+                'branch_name'  => $attendance->user->branch->name ?? '-',
+                'batch_title'  => $attendance->batch->title,
+                'batch_code'   => formatBatchCode($attendance->batch->id, $attendance->batch->created_at->year),
+                'status'       => $attendance->status,
                 'status_label' => $statusLabel,
                 'status_class' => $statusClass,
-                'checkin_time' => $attendance->checkin_time // FIXED: checkin_time
+                'checkin_time' => $attendance->checkin_time
                     ? \Carbon\Carbon::parse($attendance->checkin_time)->format('d M, H:i')
                     : '-',
-                'attendance_date' => $attendance->attendance_date,
             ];
         });
 
-        // Get participants who haven't attended yet
+        // Peserta belum absen (hanya jika ada filter)
+        $notAttendedParticipants = collect();
         if ($batchId || $branchId) {
-            $attendedUserIds = Attendance::when($batchId, function($q) use ($batchId) {
-                $q->where('batch_id', $batchId);
-            })
-            ->when($branchId, function($q) use ($branchId) {
-                $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-            })
-            ->pluck('user_id')
-            ->unique();
+            $attendedUserIds = Attendance::when($batchId,  fn($q) => $q->where('batch_id', $batchId))
+                ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)))
+                ->pluck('user_id')
+                ->unique();
 
-            $notAttendedParticipants = BatchParticipant::with(['user.branch', 'batch.category'])
+            $notAttendedParticipants = BatchParticipant::with(['user.branch', 'batch'])
                 ->where('status', 'Approved')
                 ->whereNotIn('user_id', $attendedUserIds)
-                ->when($batchId, function($q) use ($batchId) {
-                    $q->where('batch_id', $batchId);
-                })
-                ->when($branchId, function($q) use ($branchId) {
-                    $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-                })
+                ->when($batchId,  fn($q) => $q->where('batch_id', $batchId))
+                ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)))
                 ->get()
-                ->map(function($participant) {
-                    return [
-                        'id' => null,
-                        'user_name' => $participant->user->name,
-                        'user_nip' => $participant->user->nip ?? '-',
-                        'branch_name' => $participant->user->branch->name ?? '-',
-                        'batch_title' => $participant->batch->title,
-                        'batch_code' => formatBatchCode($participant->batch->id, $participant->batch->created_at->year),
-                        'status' => 'Not Attended',
-                        'status_label' => 'Belum Absen',
-                        'status_class' => 'bg-gray-200 text-gray-700',
-                        'checkin_time' => '-',
-                        'attendance_date' => null,
-                    ];
-                });
-
-            // Merge with existing attendances
-            $allAttendanceData = collect($attendances->items())->merge($notAttendedParticipants);
-        } else {
-            $allAttendanceData = collect($attendances->items());
+                ->map(fn($p) => [
+                    'user_name'    => $p->user->name,
+                    'branch_name'  => $p->user->branch->name ?? '-',
+                    'batch_title'  => $p->batch->title,
+                    'batch_code'   => formatBatchCode($p->batch->id, $p->batch->created_at->year),
+                    'status'       => 'Not Attended',
+                    'status_label' => 'Belum Absen',
+                    'status_class' => 'bg-gray-100 text-gray-600',
+                    'checkin_time' => '-',
+                ]);
         }
 
-        // Get filter options
         $batches = Batch::with('category')
             ->orderBy('start_date', 'desc')
             ->get()
-            ->map(function($batch) {
-                return [
-                    'id' => $batch->id,
-                    'label' => $batch->title,
-                    'code' => formatBatchCode($batch->id, $batch->created_at->year),
-                ];
-            });
+            ->map(fn($b) => [
+                'id'   => $b->id,
+                'label' => $b->title,
+                'code' => formatBatchCode($b->id, $b->created_at->year),
+            ]);
 
         $branches = Branch::orderBy('name')->get();
 
@@ -240,73 +161,51 @@ class AttendanceController extends Controller
             'attendanceRate',
             'batchAttendance',
             'attendances',
-            'allAttendanceData',
+            'notAttendedParticipants',
             'batches',
             'branches',
-            'batchId',
-            'branchId'
         ));
     }
 
-    /**
-     * Export attendance report
-     */
     public function export(Request $request)
     {
-        $batchId = $request->input('batch_id');
+        $batchId  = $request->input('batch_id');
         $branchId = $request->input('branch_id');
 
-        // Get attendance data
         $attendances = Attendance::with(['user.branch', 'batch.category'])
-            ->when($batchId, function($q) use ($batchId) {
-                $q->where('batch_id', $batchId);
-            })
-            ->when($branchId, function($q) use ($branchId) {
-                $q->whereHas('user', fn($query) => $query->where('branch_id', $branchId));
-            })
+            ->when($batchId,  fn($q) => $q->where('batch_id', $batchId))
+            ->when($branchId, fn($q) => $q->whereHas('user', fn($q2) => $q2->where('branch_id', $branchId)))
             ->orderBy('attendance_date', 'desc')
             ->get();
 
         $filename = 'attendance-monitoring-' . date('Y-m-d') . '.csv';
 
-        return response()->streamDownload(function() use ($attendances) {
+        return response()->streamDownload(function () use ($attendances) {
             $handle = fopen('php://output', 'w');
-            
-            // Header
-            fputcsv($handle, [
-                'Nama',
-                'NIP',
-                'Cabang',
-                'Batch',
-                'Kode Batch',
-                'Status Kehadiran',
-                'Tanggal',
-                'Waktu Check-In'
-            ]);
-            
-            // Data
-            foreach ($attendances as $attendance) {
-                $statusLabel = match($attendance->status) {
-                    'Present' => 'Validated',
-                    'Pending' => 'Check-In',
-                    'Absent' => 'Absent',
-                    default => '-'
+
+            fputcsv($handle, ['Nama', 'Cabang', 'Batch', 'Kode Batch', 'Status', 'Tanggal', 'Waktu Check-In']);
+
+            foreach ($attendances as $a) {
+                $statusLabel = match ($a->status) {
+                    'Approved'   => 'Validated',
+                    'Checked-in' => 'Check-In',
+                    'Absent'     => 'Absent',
+                    default      => '-',
                 };
 
                 fputcsv($handle, [
-                    $attendance->user->name,
-                    $attendance->user->nip ?? '-',
-                    $attendance->user->branch->name ?? '-',
-                    $attendance->batch->title,
-                    formatBatchCode($attendance->batch->id, $attendance->batch->created_at->year),
+                    $a->user->name,
+                    $a->user->branch->name ?? '-',
+                    $a->batch->title,
+                    formatBatchCode($a->batch->id, $a->batch->created_at->year),
                     $statusLabel,
-                    \Carbon\Carbon::parse($attendance->attendance_date)->format('d/m/Y'),
-                    $attendance->checkin_time // FIXED: checkin_time
-                        ? \Carbon\Carbon::parse($attendance->checkin_time)->format('H:i')
+                    \Carbon\Carbon::parse($a->attendance_date)->format('d/m/Y'),
+                    $a->checkin_time
+                        ? \Carbon\Carbon::parse($a->checkin_time)->format('H:i')
                         : '-',
                 ]);
             }
-            
+
             fclose($handle);
         }, $filename);
     }

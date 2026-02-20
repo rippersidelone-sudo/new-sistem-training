@@ -13,10 +13,6 @@ class ExternalBranchAccountsSeeder extends Seeder
 {
     /**
      * Buat akun Branch Coordinator otomatis untuk setiap branch yang sudah ada di DB.
-     *
-     * Asumsi:
-     * - Branch sudah masuk dari sync API (tabel branches sudah terisi)
-     * - Role "Branch Coordinator" sudah ada
      */
     public function run(): void
     {
@@ -36,7 +32,7 @@ class ExternalBranchAccountsSeeder extends Seeder
             return;
         }
 
-        // Password default untuk semua PIC (ubah sesuai kebutuhan)
+        // Password default untuk semua PIC 
         $defaultPassword = 'password123';
 
         $created = 0;
@@ -61,15 +57,14 @@ class ExternalBranchAccountsSeeder extends Seeder
             $displayName = 'PIC ' . ($branch->name ?? 'Branch');
 
             User::create([
-                'role_id' => $role->id,
-                'branch_id' => $branch->id,
-                'name' => $displayName,
-                'email' => $email,
-                'phone' => null,
-                // Karena di User model casts password => 'hashed', ini akan otomatis di-hash
-                // Tapi aman juga kalau mau explicit:
-                'password' => $defaultPassword,
-                'email_verified_at' => now(),
+                'role_id'            => $role->id,
+                'branch_id'          => $branch->id,
+                'name'               => $displayName,
+                'username'           => 'pic.' . $safeCode,
+                'email'              => $email,
+                'phone'              => null,
+                'password'           => $defaultPassword,
+                'email_verified_at'  => now(),
             ]);
 
             $created++;

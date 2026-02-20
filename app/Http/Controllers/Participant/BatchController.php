@@ -26,8 +26,8 @@ class BatchController extends Controller
         $registeredBatchIds = $user->participatingBatches()->pluck('batches.id');
 
         // Query batches
-        $query = Batch::with(['category', 'trainer', 'participants'])
-            ->where('status', '!=', 'Cancelled');
+        $query = Batch::with(['category', 'trainer', 'participants', 'sessions'])
+        ->where('status', '!=', 'Cancelled');
 
         // Search functionality
         if ($request->filled('search')) {
@@ -87,6 +87,10 @@ class BatchController extends Controller
                     ->first();
                 $batch->registration_status = $registration?->status ?? 'Unknown';
             }
+
+            // ✅ TAMBAHKAN DI SINI
+            $batch->sessions_count = $batch->sessions->count();
+            $batch->total_duration_hours = $batch->getTotalDurationInHours();
         });
 
         // Get filter options

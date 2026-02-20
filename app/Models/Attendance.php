@@ -25,8 +25,8 @@ class Attendance extends Model
     {
         return [
             'attendance_date' => 'date',
-            'checkin_time' => 'datetime',
-            'checkout_time' => 'datetime',
+            'checkin_time' => 'string',
+            'checkout_time' => 'string',
         ];
     }
 

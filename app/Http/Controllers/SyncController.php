@@ -7,7 +7,6 @@ use App\Services\ExternalAPI\ParticipantSyncService;
 use App\Services\ExternalAPI\CategorySyncService;
 use App\Services\ExternalAPI\ApiClient;
 use App\Helpers\RoleHelper;
-use Illuminate\Http\Request;
 
 class SyncController extends Controller
 {
@@ -16,73 +15,56 @@ class SyncController extends Controller
         private ParticipantSyncService $participantSync,
         private CategorySyncService    $categorySync,
         private ApiClient              $apiClient,
-    ) {
-    }
+    ) {}
 
-    // ============================================================
-    // SYNC ACTIONS
-    // ============================================================
-
-    /**
-     * Sync semua data sekaligus
-     * HQ Admin & Coordinator: Branches + Participants + Categories
-     * Branch Coordinator: Participants saja (scope cabang-nya)
-     */
     public function syncAll()
     {
-        $user     = auth()->user();
-        $results  = [];
-        $hasError = false;
+        $user    = auth()->user();
+        $results = [];
 
         if (RoleHelper::isBranchCoordinator($user)) {
-            // Branch Coordinator hanya sync participants
-            $result = $this->participantSync->sync();
-            $results['participants'] = $result;
-            if (!$result['success']) $hasError = true;
-
+            $results['participants'] = $this->participantSync->sync($user->branch_id);
         } else {
-            // HQ Admin & Coordinator sync semua
-            // 1. Branches dulu (participants butuh branch_id)
-            $branchResult = $this->branchSync->sync();
-            $results['branches'] = $branchResult;
-            if (!$branchResult['success']) $hasError = true;
-
-            // 2. Categories
-            $categoryResult = $this->categorySync->sync();
-            $results['categories'] = $categoryResult;
-            if (!$categoryResult['success']) $hasError = true;
-
-            // 3. Participants terakhir
-            $participantResult = $this->participantSync->sync();
-            $results['participants'] = $participantResult;
-            if (!$participantResult['success']) $hasError = true;
+            $results['branches']     = $this->branchSync->sync();
+            $results['categories']   = $this->categorySync->sync();
+            $results['participants'] = $this->participantSync->sync();
         }
+
+        // ── Hanya merah jika API benar-benar tidak bisa dihubungi ────────
+        // Error per-record (duplikat, constraint) = warning kuning, bukan merah
+        $hasApiFailure  = collect($results)->contains(fn($r) => !($r['success'] ?? true));
+        $hasRecordError = collect($results)->contains(fn($r) => ($r['errors'] ?? 0) > 0);
+
+        $summaryMessage = $this->buildSummaryMessage($results);
+        $errorDetails   = $this->collectErrorDetails($results);
 
         if (request()->ajax()) {
             return response()->json([
-                'success' => !$hasError,
-                'results' => $results,
-                'message' => $this->buildSummaryMessage($results),
+                'success'       => !$hasApiFailure,
+                'results'       => $results,
+                'message'       => $summaryMessage,
+                'error_details' => $errorDetails,
             ]);
         }
 
-        return redirect()->back()->with(
-            $hasError ? 'error' : 'success',
-            $this->buildSummaryMessage($results)
-        );
+        if ($hasApiFailure) {
+            session()->flash('error', $summaryMessage);
+        } elseif ($hasRecordError) {
+            // API OK tapi ada record yang gagal (duplikat dll) → warning
+            session()->flash('warning', $summaryMessage);
+            session()->flash('error_details', $errorDetails);
+        } else {
+            session()->flash('success', $summaryMessage);
+        }
+
+        return redirect()->back();
     }
 
-    /**
-     * Sync branches saja
-     * Hanya HQ Admin & Coordinator
-     */
     public function syncBranches()
     {
         $result = $this->branchSync->sync();
 
-        if (request()->ajax()) {
-            return response()->json($result);
-        }
+        if (request()->ajax()) return response()->json($result);
 
         return redirect()->back()->with(
             $result['success'] ? 'success' : 'error',
@@ -90,43 +72,34 @@ class SyncController extends Controller
         );
     }
 
-    /**
-     * Sync participants saja
-     * HQ Admin, Coordinator, Branch Coordinator
-     */
     public function syncParticipants()
     {
-        $user = auth()->user();
+        $user   = auth()->user();
+        $result = RoleHelper::isBranchCoordinator($user)
+            ? $this->participantSync->sync($user->branch_id)
+            : $this->participantSync->sync();
 
-        if (\App\Helpers\RoleHelper::isBranchCoordinator($user)) {
-            // sync khusus cabang user ini
-            $result = $this->participantSync->sync($user->branch_id);
-        } else {
-            // HQ/Coordinator: sync semua
-            $result = $this->participantSync->sync();
+        if (request()->ajax()) return response()->json($result);
+
+        $hasErrors = ($result['errors'] ?? 0) > 0;
+
+        if (!$result['success']) {
+            return redirect()->back()->with('error', $result['message']);
+        }
+        if ($hasErrors) {
+            session()->flash('warning', $result['message']);
+            session()->flash('error_details', $result['error_details'] ?? []);
+            return redirect()->back();
         }
 
-        if (request()->ajax()) {
-            return response()->json($result);
-        }
-
-        return redirect()->back()->with(
-            $result['success'] ? 'success' : 'error',
-            $result['message']
-        );
+        return redirect()->back()->with('success', $result['message']);
     }
 
-    /**
-     * Sync categories saja
-     * Hanya HQ Admin & Coordinator
-     */
     public function syncCategories()
     {
         $result = $this->categorySync->sync();
 
-        if (request()->ajax()) {
-            return response()->json($result);
-        }
+        if (request()->ajax()) return response()->json($result);
 
         return redirect()->back()->with(
             $result['success'] ? 'success' : 'error',
@@ -134,16 +107,11 @@ class SyncController extends Controller
         );
     }
 
-    /**
-     * Test koneksi ke API
-     */
     public function testConnection()
     {
         $result = $this->apiClient->testConnection();
 
-        if (request()->ajax()) {
-            return response()->json($result);
-        }
+        if (request()->ajax()) return response()->json($result);
 
         return redirect()->back()->with(
             $result['success'] ? 'success' : 'error',
@@ -152,12 +120,9 @@ class SyncController extends Controller
     }
 
     // ============================================================
-    // HELPER
+    // HELPERS
     // ============================================================
 
-    /**
-     * Build summary message dari semua hasil sync
-     */
     private function buildSummaryMessage(array $results): string
     {
         $parts = [];
@@ -170,33 +135,29 @@ class SyncController extends Controller
             $errors   = (int)($r['errors']   ?? 0);
 
             $text = "{$label}: {$created} baru";
-
-            if ($restored > 0) {
-                $text .= ", {$restored} dipulihkan";
-            }
-
+            if ($restored > 0) $text .= ", {$restored} dipulihkan";
             $text .= ", {$updated} diperbarui, {$skipped} sama";
-
-            if ($errors > 0) {
-                $text .= ", {$errors} gagal";
-            }
-
+            if ($errors > 0)   $text .= ", {$errors} gagal";
             return $text;
         };
 
-        if (isset($results['branches'])) {
-            $parts[] = $format('Branches', $results['branches']);
-        }
-
-        if (isset($results['categories'])) {
-            $parts[] = $format('Categories', $results['categories']);
-        }
-
-        if (isset($results['participants'])) {
-            $parts[] = $format('Participants', $results['participants']);
+        foreach (['branches' => 'Branches', 'categories' => 'Categories', 'participants' => 'Participants'] as $key => $label) {
+            if (isset($results[$key])) {
+                $parts[] = $format($label, $results[$key]);
+            }
         }
 
         return 'Sync selesai! ' . implode(' | ', $parts);
     }
 
+    private function collectErrorDetails(array $results): array
+    {
+        $all = [];
+        foreach ($results as $key => $result) {
+            foreach ($result['error_details'] ?? [] as $detail) {
+                $all[] = '[' . ucfirst($key) . '] ' . $detail;
+            }
+        }
+        return $all;
+    }
 }

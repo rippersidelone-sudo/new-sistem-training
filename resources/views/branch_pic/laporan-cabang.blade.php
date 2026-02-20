@@ -140,10 +140,9 @@
     {{-- Recent Batches Table --}}
     <div class="grid gap-6 mt-8 px-2">
         <div class="bg-white border rounded-2xl p-6">
-            <div class="flex items-center gap-2 position-relative w-full mb-5">
+            <div class="flex items-center gap-2 mb-5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" 
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                    class="icon icon-tabler icons-tabler-outline icon-tabler-file-text">
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                     <path d="M14 3v4a1 1 0 0 0 1 1h4" />
                     <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
@@ -151,15 +150,14 @@
                     <path d="M9 13l6 0" />
                     <path d="M9 17l6 0" />
                 </svg>
-                <h2 class="text-lg font-semibold">
-                    Ringkasan Batch Terbaru
-                </h2>
+                <h2 class="text-lg font-semibold">Ringkasan Batch Terbaru</h2>
             </div>
             
             <div class="max-h-[540px] overflow-y-auto pr-1">
-                <table class="min-w-full rounded-xl overflow-hidden">
-                    <thead class="border-b">
+                <table class="min-w-full border border-gray-200 rounded-xl overflow-hidden">
+                    <thead class="bg-[#F1F1F1]">
                         <tr class="text-left text-sm font-semibold text-gray-700">
+                            <th class="px-4 py-3">No</th>
                             <th class="px-4 py-3">Batch</th>
                             <th class="px-4 py-3">Tanggal</th>
                             <th class="px-4 py-3">Trainer</th>
@@ -169,8 +167,11 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 text-sm">
-                        @forelse($recentBatches as $batch)
+                        @forelse($recentBatches as $index => $batch)
                         <tr class="hover:bg-gray-50 transition text-left">
+                            <td class="px-4 py-3 text-gray-500">
+                                {{ $index + 1 }}
+                            </td>
                             <td class="px-4 py-3 text-left">
                                 {{ $batch->title }}
                                 <p class="text-[#737373]">TRN-{{ $batch->start_date->format('Y') }}-{{ str_pad($batch->id, 3, '0', STR_PAD_LEFT) }}</p>
@@ -203,7 +204,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
@@ -215,6 +216,13 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Pagination untuk recent batches jika dipaginasi --}}
+            @if(isset($recentBatches) && method_exists($recentBatches, 'hasPages') && $recentBatches->hasPages())
+                <div class="mt-6">
+                    <x-pagination :paginator="$recentBatches" />
+                </div>
+            @endif
         </div>
     </div>
 @endsection
@@ -223,7 +231,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Data dari controller
     const chartLabels = @json($chartLabels);
     const chartCompleted = @json($chartCompleted);
     const chartOngoing = @json($chartOngoing);
@@ -256,43 +263,20 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false
-                },
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            title: function(context) {
-                                return context[0].label || '';
-                            }
-                        }
-                    }
+                    legend: { display: false },
+                    tooltip: { mode: 'index', intersect: false }
                 },
                 scales: {
                     x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
+                        grid: { display: false },
+                        ticks: { maxRotation: 45, minRotation: 45 }
                     },
                     y: {
                         beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        },
-                        grid: {
-                            borderDash: [4, 4],
-                            color: '#D1D5DB'
-                        }
+                        ticks: { stepSize: 1 },
+                        grid: { borderDash: [4, 4], color: '#D1D5DB' }
                     }
                 }
             }
@@ -319,12 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 plugins: {
                     legend: {
                         position: 'right',
-                        labels: {
-                            padding: 20,
-                            font: {
-                                size: 12
-                            }
-                        }
+                        labels: { padding: 20, font: { size: 12 } }
                     },
                     tooltip: {
                         callbacks: {
